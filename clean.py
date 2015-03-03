@@ -3,9 +3,11 @@ import json
 import glob
 import os
 
-def import_loans():
+address = "/home/matt/gdrive/final_project/Fundraising-Success/data/loans/"
+
+def import_loans(folder):
     lst = []
-    os.chdir("/home/matt/gdrive/final_project/Fundraising-Success/data/loans")
+    os.chdir(address + folder)
     for file in glob.glob("*.json"):
         f = open(file)
         dic = json.loads(f.readline())
@@ -46,11 +48,17 @@ def build_df(lst):
     droplist += ['translator', 'video']
     df.drop(droplist,axis=1,inplace=True)
 
+    df['posted_date'] = pd.to_datetime(df.posted_date)
+    df['planned_expiration_date'] = pd.to_datetime(df.planned_expiration_date)
+
     df = get_country(df)
     df = get_desc(df)
     df = payment_terms(df)
     df = borrower_info(df)
     return df
+
+def get_start_date(df):
+    print df[df.planned_expiration_date.isnull()].posted_date.max()
 
 def dump(df):
     loans = df.to_json()
