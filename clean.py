@@ -3,9 +3,11 @@ import json
 import glob
 import os
 
-address = "/home/matt/gdrive/final_project/Fundraising-Success/data/loans/"
+# address = "/home/matt/gdrive/final_project/Fundraising-Success/data/loans/"
+address = "/Users/datascientist/matt/project/loans/"
 
-def import_loans(folder):
+
+def import_loans(folder,address=address):
     lst = []
     os.chdir(address + folder)
     for file in glob.glob("*.json"):
@@ -60,7 +62,25 @@ def build_df(lst):
 def get_start_date(df):
     print df[df.planned_expiration_date.isnull()].posted_date.max()
 
-def dump(df):
+
+def dump(df, fname):
     loans = df.to_json()
-    with open('data.json', 'w') as outfile:
+    os.chdir(address + 'dumps')
+    with open(fname, 'w') as outfile:
         json.dump(loans, outfile)
+
+def clean_and_dump(folder):
+    lst = import_loans(folder)
+    df = build_df(lst)
+    dump(df,folder +'.json')
+
+def load_cleaned(lst):
+    os.chdir(address + 'dumps')
+    dfs = []
+    for jsn in lst:
+        f = open(jsn + '.json')
+        dic = json.loads(f.read())
+        f.close()
+        df = pd.read_json(dic)
+        dfs.append(df)
+    return pd.concat(dfs,axis=0)
