@@ -92,7 +92,7 @@ def clean_and_dump(folders):
         df = build_df(lst)
         dump(df,folder +'.json')
 
-def load_cleaned(lst,drops = []):
+def load_cleaned(lst,drops = [],reindex=False):
     os.chdir(address + 'dumps')
     dfs = []
     for jsn in lst:
@@ -100,15 +100,20 @@ def load_cleaned(lst,drops = []):
         dic = json.loads(f.read())
         f.close()
         df = pd.read_json(dic)
-        df = df.drop_duplicates(['id'])        
         if drops != []:
             df.drop(drops,axis=1,inplace=True)
         dfs.append(df)
     # return pd.concat(dfs,axis=0)
     df = pd.concat(dfs,axis=0)
     df.posted_date = pd.to_datetime(df.posted_date*10**6)
-    df = df.set_index('id')
+    if reindex:
+        df = df.drop_duplicates(['id'])        
+        df = df.set_index('id')
     return df
+
+def last_pipe():
+    df = load_cleaned(['everything1','everything2'],drops = ['image', 'name', 'partner_id'],reindex=True)
+    dump(df,'everything.json')
 
 if __name__ == '__main__':
     # clean_and_dump(['700s', '800s', '900s', '1000s', '1100s', '1200s', '1300s', '1400s', '1500s', '1600s'])
@@ -116,6 +121,7 @@ if __name__ == '__main__':
     # df.index = range(df.shape[0])
     # dump(df,'everything1.json')
 
-    df = load_cleaned(['1200s', '1300s', '1400s', '1500s', '1600s'], drops = ['description'])    
+    # df = load_cleaned(['1200s', '1300s', '1400s', '1500s', '1600s'], drops = ['description'])    
     # df.index = range(df.shape[0])
-    dump(df,'everything2.json')
+    # dump(df,'everything2.json')
+    pass
