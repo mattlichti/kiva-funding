@@ -71,8 +71,8 @@ def build_df(lst):
     #throwing away image template info because only one template
     df['image'] = df.image.map(lambda x: x['id'])
 
-    df = df[df.posted_date < max_date]
-    df = df[df.posted_date > min_date]
+    # df = df[df.posted_date < max_date]
+    # df = df[df.posted_date > min_date]
 
     return df
 

@@ -1,0 +1,20 @@
+Drop:
+basket_amount - always null unless currently fundraising
+delinquent - NA unless funded
+currency_exchange_loss_amount - NA unless funded
+paid date - NA unless funded
+paid amount - NA unless funded
+journal entries - all zero unless funded
+payments - empty set unless funded
+
+
+Possible part of y:
+funded_date - used to determine how close to expiring 
+lender count - how well funded
+funded_amount - if it failed, how close was it?
+
+
+Probably drop:
+Translator - can extract language somewhere else
+Video - not enough to be significant
+
