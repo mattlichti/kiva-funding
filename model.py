@@ -7,6 +7,9 @@ from sklearn.cross_validation import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 # from sklearn.preprocessing import balance_weights
 from sklearn.svm import SVC
+from sklearn.feature_extraction.text import TfidfVectorizer
+from nltk.stem.porter import PorterStemmer
+from nltk import word_tokenize
 
 
 class funding_model(object):
@@ -42,6 +45,15 @@ class funding_model(object):
         # df = pd.concat([df, adum], axis=1)
         return act
 
+    def tokenize(self, txt, stemmer=PorterStemmer()):
+        return [stemmer.stem(word) for word in word_tokenize(txt) if word not in [',', '.',"'s"]]
+
+    def disect_use(self, df):
+        self.vectorizer = TfidfVectorizer(stop_words='english', tokenizer=self.tokenize, max_features=200, smooth_idf = True)
+        vect = self.vectorizer.fit_transform(df.use.values)
+        self.tf_col = ['use: ' + str(x) for x in self.vectorizer.get_feature_names()]
+        uses = pd.DataFrame(vect.toarray(), columns = self.tf_col)
+        return uses
 
     def transform(self, df):
         df = self.get_themes(df)
@@ -90,7 +102,16 @@ class funding_model(object):
         df = df.copy()
         # print len(df.columns)
         y = df.pop('expired').values
+
+        use = self.disect_use(df)
+        use.index = df.index
+
+        print df.shape
         df = self.transform(df)
+        print df.shape
+        df = pd.concat([df, use], axis=1)
+        print df.shape
+
         X = df.values
         self.columns = df.columns
         if mod == 'weighted':
@@ -106,7 +127,19 @@ class funding_model(object):
     def predict (self, df):
         df = df.copy()
         y = df.pop('expired').values
+
+        vect = self.vectorizer.transform(df.use.values)
+        uses = pd.DataFrame(vect.toarray(), columns = self.tf_col)
+        uses.index = df.index
+
+        print uses.info()
         df = self.transform(df)
+
+        df = pd.concat([df, uses], axis=1)
+
+
+        # print len(df.columns)
+        # print len(self.columns)
         df_cols = set(df.columns)
         # print len(df_cols)
         fit_cols = set(self.columns)
@@ -114,7 +147,7 @@ class funding_model(object):
         new_cols = fit_cols.difference(df_cols)
         # print len(new_cols)
         del_cols = df_cols.difference(fit_cols) 
-        # print len(del_cols)
+        print len(del_cols)
         df = df.drop(list(del_cols),axis=1)
         # print len(df.columns)
         for new_col in new_cols:
