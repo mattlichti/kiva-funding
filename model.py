@@ -5,7 +5,6 @@ import numpy as np
 import pipe
 from sklearn.cross_validation import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-# from sklearn.preprocessing import balance_weights
 from sklearn.svm import SVC
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.stem.porter import PorterStemmer
@@ -16,17 +15,17 @@ from nltk.stem.wordnet import WordNetLemmatizer as lemmatizer
 class funding_model(object):
 
     def __init__(self):
-        self.theme_list = sorted([u'Underfunded Areas', 'Rural Exclusion',
-                                  u'Vulnerable Groups', u'Conflict Zones',
-                                  u'Mobile Technology', u'Green',
-                                  u'Higher Education', u'Start-Up',
-                                  u'Arab Youth', u'SME',
-                                  'Water and Sanitation', u'Youth',
-                                  u'Islamic Finance', u'Job Creation',
-                                  u'Fair Trade', u'Kiva City LA',
-                                  u'Innovative Loans', u'Growing Businesses',
-                                  u'Disaster recovery',
-                                  u'Health', u'Kiva City Detroit',
+        self.theme_list = sorted(['Underfunded Areas', 'Rural Exclusion',
+                                  'Vulnerable Groups', 'Conflict Zones',
+                                  'Mobile Technology', 'Green',
+                                  'Higher Education', 'Start-Up',
+                                  'Arab Youth', 'SME',
+                                  'Water and Sanitation', 'Youth',
+                                  'Islamic Finance', 'Job Creation',
+                                  'Fair Trade', 'Kiva City LA',
+                                  'Innovative Loans', 'Growing Businesses',
+                                  'Disaster recovery',
+                                  'Health', 'Kiva City Detroit',
                                   'Flexible Credit Study', 'none'])
 
         self.columns = []
@@ -40,37 +39,24 @@ class funding_model(object):
         df = df.drop(['themes'], axis=1)
         return df
 
-    # def get_activities(self, df):
-    #     acts = df.activity.map(lambda x: "activity: " + x)    
-    #     act = pd.get_dummies(acts)
-    #     return act
-
-    # def tokenize(self, txt, stemmer=PorterStemmer()):
     def tokenize(self, txt, stemmer=lemmatizer()):
-        # return [stemmer.stem(word) for word in word_tokenize(txt) if word not in [',', '.',"'s"]]
         return [stemmer.lemmatize(word) for word in word_tokenize(txt) if word not in [',', '.',"'s"]]
 
-
     def disect_use(self, df):
-        self.vectorizer = TfidfVectorizer(stop_words='english', tokenizer=self.tokenize, max_features=200, smooth_idf = True)
+        self.vectorizer = TfidfVectorizer(stop_words='english', tokenizer=self.tokenize, max_features=200, smooth_idf=True)
         vect = self.vectorizer.fit_transform(df.use.values)
         self.tf_col = ['use: ' + str(x) for x in self.vectorizer.get_feature_names()]
-        uses = pd.DataFrame(vect.toarray(), columns = self.tf_col)
+        uses = pd.DataFrame(vect.toarray(), columns=self.tf_col)
         return uses
 
     def transform(self, df):
         df = self.get_themes(df)
-        # act = self.get_activities(df)
 
-        # adding activity dummies 
-        acts = df.activity.map(lambda x: "activity: " + x)    
+        # adding activity, sector, country dummies
+        acts = df.activity.map(lambda x: "activity: " + x)
         act = pd.get_dummies(acts)
-
-        # adding sector dummies 
         sdum = pd.get_dummies(df.sector)
         sdum.columns = ['sector: ' + x for x in sdum.columns]
-
-        # adding country dummies 
         cdum = pd.get_dummies(df.country)
         cdum.columns = ['country: ' + x for x in cdum.columns]
 
@@ -86,30 +72,26 @@ class funding_model(object):
         funded_prop = y_expired.shape[0]/float(y_funded.shape[0])
         X_sample, X_junk, y_sample, y_junk = train_test_split(
             X_funded, y_funded, train_size=funded_prop*ratio)
-        # print funded_prop
-        # print X_sample.shape, y_sample.shape
+
         X_oversamp = np.concatenate([X_expired, X_sample], axis=0)
         y_oversamp = np.concatenate([y_expired, y_sample], axis=0)
-        # print y_oversamp.mean()
         self.model = RandomForestClassifier(n_estimators=15,
                                             min_samples_split=split)
         self.model.fit(X_oversamp, y_oversamp)
-        # print 'train score', rf.score(X_oversamp,y_oversamp)
 
     def fit_weighted(self, X, y, split=500, w=2, leaf=20, trees=20,
                      mf="sqrt", depth=None):
         self.model = RandomForestClassifier \
                      (min_samples_split=split, n_estimators=trees,
                       min_samples_leaf=leaf, max_features=mf, max_depth=depth)
-        # weights = y/(y.mean()/w) + 1
+
         weights = np.array([1/(y.mean()*w) if x else 1 for x in list(y)])
         self.model.fit(X, y, sample_weight=weights)
 
-    def fit_svm(self,X,y,class_weight = 'auto'):
+    def fit_svm(self, X, y, class_weight='auto'):
             # weights = y/(y.mean()/w) + 1
-            self.model = SVC(class_weight = 'auto')
+            self.model = SVC(class_weight='auto')
             self.model.fit(X, y)
-
 
     def transform_fit(self, df, mod='weighted', weight=2, leaf=20, split=500,
                       trees=20, mf="sqrt", depth=None):
@@ -131,37 +113,28 @@ class funding_model(object):
         else:
             self.fit_oversample(X, y)
 
-
     def predict (self, df):
         df = df.copy()
         y = df.pop('expired').values
 
         vect = self.vectorizer.transform(df.use.values)
-        uses = pd.DataFrame(vect.toarray(), columns = self.tf_col)
+        uses = pd.DataFrame(vect.toarray(), columns=self.tf_col)
         uses.index = df.index
 
-        print uses.info()
         df = self.transform(df)
-
         df = pd.concat([df, uses], axis=1)
 
         df_cols = set(df.columns)
-        # print len(df_cols)
         fit_cols = set(self.columns)
-        # print len(fit_cols)
         new_cols = fit_cols.difference(df_cols)
-        # print len(new_cols)
         del_cols = df_cols.difference(fit_cols) 
-        print len(del_cols)
         df = df.drop(list(del_cols),axis=1)
-        # print len(df.columns)
+
         for new_col in new_cols:
             df[new_col] = 0
-        # print len(df.columns)
         X = df.values
         ypred = self.model.predict(X)
         self.confusion(ypred, y)
-
 
     def confusion(self, ypred, y_test):
         true_pos = np.logical_and(y_test, ypred).mean()
@@ -177,17 +150,12 @@ class funding_model(object):
         print ''
 
     def feat_imp(self):
-        # print self.columns
         column_list = self.columns
-        # print len(column_list)
         imp = self.model.feature_importances_
-        # print len(imp)
-        most = np.argsort(imp)
-        # print most
-        most = most[::-1]
-        # print column_list
+        most = np.argsort(imp)[::-1]
+        # most = most[::-1]
         for feat in most:
-            print str(column_list[feat]) + ": " +str(round(imp[feat] * 100,2)) + '%'
+            print str(column_list[feat]) + ": " + str(round(imp[feat] * 100,2)) + '%'
 
 
 def run_model():
