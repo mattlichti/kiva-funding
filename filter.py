@@ -39,3 +39,22 @@ def timeframe2014():
 	df = timeframe(df)
 	df = binarize(df)
 	pipe.dump(df,'timeframe.json')
+
+def get_months(df):
+	jan = df[(df.posted_date > '2014-1-01') & (df.posted_date < '2014-2-01')]
+	feb = df[(df.posted_date > '2014-2-01') & (df.posted_date < '2014-3-01')]
+	march = df[(df.posted_date > '2014-3-01') & (df.posted_date < '2014-4-01')]
+	april = df[(df.posted_date > '2014-4-01') & (df.posted_date < '2014-5-01')]
+	may = df[(df.posted_date > '2014-5-01') & (df.posted_date < '2014-6-01')]
+	june = df[(df.posted_date > '2014-6-01') & (df.posted_date < '2014-7-01')]
+	july = df[(df.posted_date > '2014-7-01') & (df.posted_date < '2014-8-01')]
+	aug = df[(df.posted_date > '2014-8-01') & (df.posted_date < '2014-9-01')]
+	sep = df[(df.posted_date > '2014-9-01') & (df.posted_date < '2014-10-01')]
+	octb = df[(df.posted_date > '2014-10-01') & (df.posted_date < '2014-11-01')]
+	nov = df[(df.posted_date > '2014-11-01') & (df.posted_date < '2014-12-01')]
+	return [jan, feb, march, april, may, june, july, aug, sep, octb, nov]
+
+def get_time_periods(df):	
+	augsep = df[(df.posted_date > '2014-8-01') & (df.posted_date < '2014-10-01')]
+	apsep = df[(df.posted_date > '2014-4-01') & (df.posted_date < '2014-10-01')]
+	return apsep, augsep
