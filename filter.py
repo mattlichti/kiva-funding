@@ -40,6 +40,14 @@ def timeframe2014():
 	df = binarize(df)
 	pipe.dump(df,'timeframe.json')
 
+def pickl2014():
+	df = pipe.load_cleaned(['everything'])
+	df = timeframe(df)
+	df['expired'] = df.status == 'expired'
+	df = df[df.status != 'refunded']
+	df = df.drop(['status','tags'],axis=1)
+	df.to_pickle('2014.pkl')
+
 def get_months(df):
 	jan = df[(df.posted_date > '2014-1-01') & (df.posted_date < '2014-2-01')]
 	feb = df[(df.posted_date > '2014-2-01') & (df.posted_date < '2014-3-01')]
@@ -57,4 +65,8 @@ def get_months(df):
 def get_time_periods(df):	
 	augsep = df[(df.posted_date > '2014-8-01') & (df.posted_date < '2014-10-01')]
 	apsep = df[(df.posted_date > '2014-4-01') & (df.posted_date < '2014-10-01')]
+	augnov = df[(df.posted_date > '2014-8-01') & (df.posted_date < '2014-12-01')]
 	return apsep, augsep
+
+if __name__ == '__main__':
+	pickl2014()

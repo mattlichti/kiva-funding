@@ -7,9 +7,9 @@ from sklearn.cross_validation import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.feature_extraction.text import TfidfVectorizer
-from nltk.stem.porter import PorterStemmer
 from nltk import word_tokenize
 from nltk.stem.wordnet import WordNetLemmatizer as lemmatizer
+from sklearn.linear_model import LogisticRegression 
 
 
 class funding_model(object):
@@ -43,7 +43,7 @@ class funding_model(object):
         return [stemmer.lemmatize(word) for word in word_tokenize(txt) if word not in [',', '.',"'s"]]
 
     def disect_use(self, df):
-        self.vectorizer = TfidfVectorizer(stop_words='english', tokenizer=self.tokenize, max_features=200, smooth_idf=True)
+        self.vectorizer = TfidfVectorizer(stop_words='english', tokenizer=self.tokenize, max_features=250, use_idf=False)
         vect = self.vectorizer.fit_transform(df.use.values)
         self.tf_col = ['use: ' + str(x) for x in self.vectorizer.get_feature_names()]
         uses = pd.DataFrame(vect.toarray(), columns=self.tf_col)
@@ -89,12 +89,11 @@ class funding_model(object):
         self.model.fit(X, y, sample_weight=weights)
 
     def fit_svm(self, X, y, class_weight='auto'):
-            # weights = y/(y.mean()/w) + 1
             self.model = SVC(class_weight='auto')
             self.model.fit(X, y)
 
-    def transform_fit(self, df, mod='weighted', weight=2, leaf=20, split=500,
-                      trees=20, mf="sqrt", depth=None):
+    def transform_fit(self, df, mod='weighted', weight=1, leaf=50, split=500,
+                      trees=40, mf="sqrt", depth=None):
         df = df.copy()
         y = df.pop('expired').values
 
@@ -104,14 +103,25 @@ class funding_model(object):
         df = self.transform(df)
         df = pd.concat([df, use], axis=1)
 
+        # self.df = df
+
         X = df.values
         self.columns = df.columns
         if mod == 'weighted':
             self.fit_weighted(X, y, w=weight, leaf=leaf, split=split, trees=trees, mf="sqrt")
         elif mod == 'SVM':
             self.fit_svm(X, y)
+        elif mod == 'reg':
+            self.regress_model(X, y)
         else:
             self.fit_oversample(X, y)
+
+    def regress_model(self, X, y):
+        self.model = LogisticRegression()
+        self.model.fit(X,y)
+        self.coef = self.model.coef_.flatten()
+        print type(self.coef)
+        print self.coef.shape
 
     def predict (self, df):
         df = df.copy()
@@ -151,11 +161,14 @@ class funding_model(object):
 
     def feat_imp(self):
         column_list = self.columns
-        imp = self.model.feature_importances_
-        most = np.argsort(imp)[::-1]
-        # most = most[::-1]
-        for feat in most:
+        imp = self.model.feature_importances_ #only for rf
+
+        print type(self.coef)
+        print len(imp)
+
+        for feat in np.argsort(imp)[::-1]:
             print str(column_list[feat]) + ": " + str(round(imp[feat] * 100,2)) + '%'
+            print self.coef[feat]
 
 
 def run_model():
