@@ -30,6 +30,32 @@ def expired_plot(df):
 	plt.hist(expired,bins=z)
 	plt.show()
 
+def expired_plot2(df):
+	months = get_months(df)
+	fundedm = []
+	expirem = []
+	expper = []
+	for month in months:
+		expired = len(month[month.expired])
+		funded = len(month[~month.expired])
+		fundedm.append(funded)
+		expirem.append(expired)
+		exp = expired/float(expired+funded)
+		expper.append(exp)
+	# plt.bar(range(1,12),fundedm, expirem)
+	# plt.bar(range(1,12),expirem, expirem)
+	plt.bar(range(1,12),expper)
+	plt.ylabel('expiration rate')
+	plt.xticks(range(1,12),['Jan','Feb','Mar','April','May','June','July','Aug','Sep','Oct','Nov'])
+
+
+	plt.show()
+	# z = list(np.arange(2014.1,2015,1./12))
+	# plt.hist(funded,bins=z)
+	# plt.hist(expired,bins=z)
+	# plt.show()
+
+
 def expr_time(df):
 	plt.scatter((df.posted_date.values - np.datetime64(44, 'Y'))/np.timedelta64(1, 'D')/365 + 2014,df.days_available)
 	plt.show()

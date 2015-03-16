@@ -1,0 +1,212 @@
+October
+actl pos: 0.0511 pred pos: 0.2824
+true pos: 0.0482 false pos: 0.2342
+true neg: 0.7147 false neg: 0.0029
+recall: 0.9433 precision: 0.1708
+
+November
+actl pos: 0.1405 pred pos: 0.3323
+true pos: 0.1289 false pos: 0.2034
+true neg: 0.6562 false neg: 0.0116
+recall: 0.9177 precision: 0.3879
+
+loan_amount: 19.46%
+repayment_interval: Monthly: 16.76%
+repayment_term: 12.99%
+repayment_interval: Irregularly: 9.51%
+gender: 8.82%
+country: SV: 2.25%
+use_text_len: 1.03%
+sector: Housing: 1.02%
+group_size: 0.93%
+country: KH: 0.9%
+country: PH: 0.83%
+sector: Education: 0.82%
+sector: Retail: 0.74%
+bonus_credit_eligibility: 0.69%
+country: UG: 0.67%
+country: CO: 0.62%
+theme: none: 0.56%
+currency_loss: 0.49%
+repayment_interval: At end of term: 0.48%
+sector: Agriculture: 0.47%
+activity: Personal Housing Expenses: 0.47%
+sector: Arts: 0.43%
+country: KE: 0.41%
+theme: Underfunded Areas: 0.39%
+activity: Farming: 0.34%
+use: fertilizer: 0.34%
+use: purchase: 0.33%
+activity: Higher education costs: 0.33%
+use: process: 0.31%
+use: buy: 0.31%
+theme: Conflict Zones: 0.31%
+theme: Water and Sanitation: 0.3%
+use: house: 0.28%
+use: yield: 0.28%
+country: ZW: 0.28%
+sector: Manufacturing: 0.27%
+theme: Higher Education: 0.27%
+theme: Rural Exclusion: 0.25%
+use: cement: 0.23%
+theme: Innovative Loans: 0.21%
+activity: Sewing: 0.21%
+sector: Food: 0.21%
+sector: Health: 0.2%
+country: PK: 0.19%
+activity: General Store: 0.19%
+country: PE: 0.19%
+country: EC: 0.19%
+use: seed: 0.19%
+use: pay: 0.18%
+use: solar: 0.18%
+country: PY: 0.18%
+theme: Youth: 0.17%
+use: sewing: 0.16%
+country: NG: 0.16%
+activity: Clothing Sales: 0.16%
+use: material: 0.15%
+country: AM: 0.15%
+use: mobile: 0.15%
+country: PS: 0.15%
+use: additional: 0.15%
+country: IN: 0.15%
+activity: Home Energy: 0.15%
+use: sand: 0.14%
+activity: Pigs: 0.14%
+country: ID: 0.14%
+theme: Disaster recovery: 0.14%
+country: ML: 0.14%
+use: store: 0.13%
+use: machine: 0.13%
+use: fee: 0.13%
+use: new: 0.12%
+theme: Green: 0.12%
+theme: Start-Up: 0.11%
+activity: Agriculture: 0.11%
+use: gravel: 0.11%
+use: clothing: 0.11%
+activity: Phone Use Sales: 0.11%
+use: sell: 0.11%
+sector: Clothing: 0.1%
+country: NI: 0.1%
+sector: Personal Use: 0.1%
+use: labor: 0.1%
+use: stock: 0.1%
+country: TJ: 0.1%
+country: VN: 0.1%
+country: JO: 0.09%
+use: business: 0.09%
+use: water: 0.09%
+use: farmland: 0.09%
+sector: Services: 0.09%
+theme: Vulnerable Groups: 0.09%
+use: clothes: 0.08%
+use: toilet: 0.08%
+use: general: 0.08%
+use: phone: 0.08%
+use: pig: 0.08%
+activity: Primary/secondary school costs: 0.08%
+activity: Personal Purchases: 0.08%
+activity: Retail: 0.08%
+use: hybrid: 0.08%
+country: CR: 0.08%
+country: RW: 0.08%
+use: feed: 0.08%
+use: drink: 0.08%
+theme: Mobile Technology: 0.08%
+country: KG: 0.07%
+use: rice: 0.07%
+use: supply: 0.07%
+use: cow: 0.07%
+use: farm: 0.07%
+country: LB: 0.07%
+country: TL: 0.06%
+activity: Dairy: 0.06%
+sector: Transportation: 0.06%
+use: livestock: 0.06%
+use: drinking: 0.06%
+use: maize: 0.06%
+use: order: 0.06%
+country: CM: 0.06%
+theme: Islamic Finance: 0.06%
+country: LR: 0.06%
+country: YE: 0.06%
+use: product: 0.06%
+country: AZ: 0.06%
+use: tuition: 0.05%
+use: increase: 0.05%
+country: TZ: 0.05%
+use: fish: 0.05%
+use: resale: 0.05%
+use: income: 0.05%
+use: sugar: 0.05%
+theme: Arab Youth: 0.05%
+use: item: 0.05%
+country: BJ: 0.05%
+use: grocery: 0.05%
+country: WS: 0.05%
+country: HT: 0.05%
+use: production: 0.05%
+use: latrine: 0.05%
+use: fabric: 0.04%
+country: SN: 0.04%
+activity: Livestock: 0.04%
+use: input: 0.04%
+country: HN: 0.04%
+use: pesticide: 0.04%
+activity: Grocery Store: 0.04%
+use: needed: 0.04%
+use: large: 0.04%
+use: ingredient: 0.04%
+use: build: 0.04%
+use: oil: 0.04%
+activity: Education provider: 0.04%
+use: wood: 0.04%
+use: herbicide: 0.04%
+theme: Job Creation: 0.04%
+use: school: 0.04%
+use: construction: 0.04%
+use: juice: 0.04%
+use: land: 0.04%
+use: agricultural: 0.04%
+country: US: 0.04%
+use: coffee: 0.04%
+use: thread: 0.04%
+use: soft: 0.03%
+activity: Services: 0.03%
+country: MX: 0.03%
+use: dairy: 0.03%
+use: vegetable: 0.03%
+use: brick: 0.03%
+activity: Cattle: 0.03%
+country: IQ: 0.03%
+activity: Animal Sales: 0.03%
+use: like: 0.03%
+country: BO: 0.03%
+use: home: 0.03%
+use: access: 0.03%
+activity: Rickshaw: 0.03%
+use: poultry: 0.03%
+use: sale: 0.03%
+use: sheet: 0.03%
+use: merchandise: 0.02%
+sector: Construction: 0.02%
+use: food: 0.02%
+use: snack: 0.02%
+theme: Fair Trade: 0.02%
+country: SL: 0.02%
+use: beverage: 0.02%
+use: help: 0.02%
+use: cattle: 0.02%
+activity: Food Production/Sales: 0.02%
+use: renovate: 0.02%
+use: husband: 0.02%
+use: beauty: 0.02%
+use: resell: 0.02%
+use: plowing: 0.02%
+use: building: 0.02%
+use: basic: 0.02%
+use: shop: 0.02%
+use: iron: 0.02%
+use: grain: 0.02%

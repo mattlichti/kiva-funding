@@ -26,61 +26,56 @@ class FundingModel(object):
                                   'Flexible Credit Study', 'none'])
         
         self.vectorizer = None # vectorizer object
-
         self.columns = [] # list of columns in fit model
         self.tf_col = [] # list of term freq columns in fit model 
         self.model = None # maybe put the model here
 
     def get_themes(self, df):
-        # filling null themes with emplty list so it doesn't throw errors
+        '''filling null themes with emplty list so it doesn't throw errors
+            creating a dummy variable for each of the 22 themes'''
+
         df.themes = df.themes.map(lambda x: x if type(x) == list else ['none'])
         for theme in self.theme_list:
-            # creating a dummy variable for each of the 22 themes
             df['theme: '+str(theme)] = df.themes.map(lambda x: theme in x)
         df = df.drop(['themes'], axis=1)
         return df
 
     def tokenize(self, txt, stemmer=lemmatizer()):
-        return [stemmer.lemmatize(word) for word in word_tokenize(txt) if word not in [',', '.',"'s", '(', ')']]
+        return [stemmer.lemmatize(word) for word in word_tokenize(txt)
+                if word not in [',', '.',"'s", '(', ')']]
 
-    def disect_use(self, df):
-        self.vectorizer = TfidfVectorizer(stop_words='english', tokenizer=self.tokenize, max_features=250, use_idf=False)
+    def transform_text(self, df):
+        self.vectorizer = TfidfVectorizer(stop_words='english', tokenizer=
+                                          self.tokenize, max_features=250, 
+                                          use_idf=False)
         vect = self.vectorizer.fit_transform(df.use.values)
         self.tf_col = ['use: ' + str(x) for x in self.vectorizer.get_feature_names()]
         uses = pd.DataFrame(vect.toarray(), columns=self.tf_col)
         return uses
 
-    def transform(self, df):
+    def transform_features(self, df):
+        '''adding dummy variables for country, sector, repayment_interval, 
+           and activity and making gender and currency_loss boolean'''
         df = self.get_themes(df)
 
-        # adding activity, sector, country dummies
-        acts = df.activity.map(lambda x: "activity: " + x)
-        act = pd.get_dummies(acts)
+        dummy_dfs = []
+        for feature in ['sector', 'country', 'repayment_interval', 'activity']: 
+            dummy_df = pd.get_dummies(df[feature]).astype(bool)
+            dummy_df.columns = [feature + ': ' + x for x in dummy_df.columns]
+            dummy_dfs.append(dummy_df)
 
-        sdum = pd.get_dummies(df.sector)
-        sdum.columns = ['sector: ' + x for x in sdum.columns]
-
-        cdum = pd.get_dummies(df.country)
-        cdum.columns = ['country: ' + x for x in cdum.columns]
-
-        # add currency loss and repayment interval dummies
-        cur = pd.get_dummies(df.currency_loss)
-        cur.columns = ["currency_loss: " + x for x in cur.columns]
-
-        repay = pd.get_dummies(df.repayment_interval)
-        repay.columns = ["repayment_interval: " + x for x in repay.columns]
-
+        df['currency_loss'] = df.currency_loss == 'shared'
         df['gender'] = df.gender == 'F'
+        df['use_text_len'] = df.use.map(lambda x: len(x))
 
-
-        df = pd.concat([df, sdum, cdum, act, cur, repay], axis=1)
+        df = pd.concat(dummy_dfs + [df], axis=1)
         df = df.drop(['posted_date', 'sector', 'use', 'country',
-                      'activity', 'currency_loss', 'repayment_interval'], axis=1)
+                      'activity', 'repayment_interval'], axis=1)
         
         print df.info()
         return df
 
-    def fit_weighted(self, X, y, split=500, w=2, leaf=20, trees=20,
+    def fit_weighted(self, X, y, split=500, w=1, leaf=40, trees=30,
                      mf="sqrt", depth=None):
         self.model = RandomForestClassifier \
                      (min_samples_split=split, n_estimators=trees,
@@ -89,21 +84,22 @@ class FundingModel(object):
         weights = np.array([1/(y.mean()*w) if x else 1 for x in list(y)])
         self.model.fit(X, y, sample_weight=weights)
 
+    def transform_training(self, df):
+        loan_use = self.transform_text(df)
+        loan_use.index = df.index
+        df = self.transform_features(df)
+        df = pd.concat([df, loan_use], axis=1)
+        return df
 
-    def transform_fit(self, df, weight=1, leaf=30, split=500,
-                      trees=40, mf="sqrt", depth=None):
-
-
-        use = self.disect_use(df)
-        use.index = df.index
-
-        df = self.transform(df)
-        df = pd.concat([df, use], axis=1)
-
+    def fit(self, df):
         y = df.pop('expired').values
         X = df.values
         self.columns = df.columns
-        self.fit_weighted(X, y, w=weight, leaf=leaf, split=split, trees=trees, mf="sqrt")
+        self.fit_weighted(X, y)
+
+    def transform_fit(self, df):
+        df = self.transform_training(df)
+        self.fit(df)
 
     def predict (self, df):
 
@@ -113,7 +109,7 @@ class FundingModel(object):
         uses = pd.DataFrame(vect.toarray(), columns=self.tf_col)
         uses.index = df.index
 
-        df = self.transform(df)
+        df = self.transform_features(df)
         df = pd.concat([df, uses], axis=1)
 
         df_cols = set(df.columns)
@@ -157,5 +153,18 @@ def run_model():
     mod.feat_imp()
     mod.predict(df)
 
+def pickle_transformed():
+    df = pd.io.pickle.read_pickle('2014_df.pkl')
+    mod = FundingModel()
+    df = mod.transform_training(df)
+    df.to_pickle('transformed2.pkl')
+
+def run_pickled():
+    mod = FundingModel()
+    df = pd.io.pickle.read_pickle('transformed2.pkl')
+    mod.fit(df)
+    mod.feat_imp()
+
+
 if __name__ == '__main__':
-    run_model()
+    run_pickled()
