@@ -1,43 +1,29 @@
-#Fundraising Success
+#How to get Loans Funded on Kiva
 
 ####Matt Lichti
 
-####Feb 25, 2015
-
 ##Summary: 
 
-My project is an analysis of what makes a campaign successful on peer to peer charitable fundraising platforms. I will probably get all my data from Kiva.org because it is has a very rich data set. Other similar platforms include zidisha, global giving, vittana, watsi, and givology. Over 800,000 microfinance loans have been funded and around 21,000 expired on Kiva since it was founded in 2005. The loans on kiva.org are available for funding the site for 30 days before expiration, so I could also use the number days it took to get funded mas the y-variable in addition to whether the loan was funded or expired. I will do natural language processing and feature engineering on the kiva loan data and run some machine learning algorithms to determine feature importance, and make a recommendations based on the results. 
-
-##Motivation: 
-
-Peer to peer platforms provide a useful new tool for charities to raise money. It is important to understand what motivates people to give to a specific person or cause in order for charities to effectively raise money.
-
-##Deliverables: 
-
-I will make a website with my results and some visualizations, perhaps using plotly. The main results will be a determination of which features positively or negatively impact the chance of getting funded. The features can include words or phrases in the descriptions. I will present a series of lessons from my analysis on what kiva, the field partners, and lenders could do to improve their experience based on my findings. It might be cool to make a recommender that recommends loans to people based on pulling data on their previous loans from the kiva api.
+My project is an analysis of what makes a campaign successful on Kiva.org. Over 840,000 microfinance loans have been funded on Kiva since it was founded in 2005. The loans on kiva.org are available for funding on the site for 30 days. If they are not funded in that time, the loan expires and the lenders are refunded their money. Because of this, it is important for the microfinance organizations to understand the preferences of kiva lenders to increase the chances that the loans they post get funded. The most important results are a determination of which features positively and negatively impact the chance of getting funded. 
 
 ##Data:
 
-Kiva has data on 844,000 loans at http://build.kiva.org/. They archive the public data nightly in a few thousand json files http://s3.kiva.org/snapshots/kiva_ds_json.zip which is 5 GB unzipped. The data on the 290 field partners comes from the api http://api.kivaws.org/v1/partners.json The pictures for all 840k borrowers are on the kiva website and available through the API http://www.kiva.org/lend/844181 
+Kiva has data on 844,000 loans at http://build.kiva.org/. They archive the public data periodically in a a set of over 1600 json files with 500 loans each at http://s3.kiva.org/snapshots/kiva_ds_json.zip which is 5 GB unzipped.
 
 ##Feature Engineering 
 
-I think the most important features are the ones that potential lenders can easily see when looking at a page of loans. Here is an example of what someone sees when searching for a loan to fund on kiva:
-
-![Kiva Loan](https://github.com/mattlichti/Fundraising-Success/blob/master/img/kiva.png)
+![Kiva Loan](https://github.com/mattlichti/Fundraising-Success/blob/master/img/features.jpg)
 testing 456
 
-The obvious features would be country (categorical, 84 countries), sector (15 categories like transportation,  agriculture), loan Amount, whether it is an individual or group loan, and gender. The specific activity (like "rickshaw" or "pigs") is a bit more complicated because there are hundreds of different activities in the data so I might want to group them together using clustering algorithms. I also want to do some NLP on the one sentence description of what the loan is for.
-
-The photo would be very difficult to categorize but is probably one of the most important feature lenders use when deciding what loan to fund. I will see if there is some pre-existing image recognition software that can detect features like if the person is smiling in the photo, number of people, if there are children or animals in the photo, etc. I could also use services like croudflower or mechanical turk for that, but I would only be able to do a small subset of the data. There are some Kiva lending teams that base their lending specifically on the photos like “Women wearing hats” and “Guys holding fish” so I could create features based on whether a loan received funding from these groups, which I think I can find using the API or json files. 
-
-The loans also have various searchable attributes like "green", "fair trade", "conflict zones", etc, which could be categorical variables. When you click on a loan, you get a lot more information including several paragraphs about the borrower, which I could do some NLP on this as well. In addition, this page contains tons of information and statistics about the field partner (the organization that administers the loan) including a 1 to 5 rating of default risk, various social performance criteria, and average interest rates, and more information about the loan like the repayment schedule. There is a lot of potential feature engineering to do with some of this information.
-
-One problem is that the number of other loans on the website strongly impact whether a loan gets funded and how long it takes to get funded. When there aren't enough loans on the website, all of the loans get funded quickly. The number of lenders also increased greatly over time which reduces funding time if the number of loans doesn't increase at the same rate. I'm not sure yet how to build that into the model.
+The features include country (categorical, 84 countries), sector (15 categories like transportation,  agriculture), loan Amount, whether it is an individual or group loan, gender, and the specific activity (150 categories like "rickshaw" or "cattle") . I also used TFIDF and a lemmatizer to vectorize the one sentence description of how the loan will be used. The loans also have various searchable attributes like "green", "fair trade", "conflict zones", etc.
 
 ##Process:
 
-I already have the data in json form and a small portion of it loaded into pandas. A lot of the useful data is several dictionaries deep in the json file and needs some cleaning. I'll do exploratory analysis and model building in python. I may want to use AWS when I train the model because the 5 GB dataset would take forever to train on my laptop. I'll do a grid search with lots of different machine learning algorithms. I'll write up my results and recommendations, make a bunch of visuals, and build a really basic webpage with flask and embed the visuals in it using plotly or something similar that doesn't require learning much javascript. 
+The file pipe.py is used to read in the 1600 json files and convert them into pandas dataframes. A lot of the useful data is several dictionaries deep in the json file and needs a lot of preprocessing to extract the useful information. The cleaned up data can then be saved as json files or a pickle with pipe.py The filter.py file is used to choose a date ranges to build and test the models. The timeframe for my model was chosen based on loan expiration times. I determined that kiva changed their expiration policies during the Christmas 2013 and Christmas 2014 seasons, making it hard to compare expiration rates during that timefram to the rest of the year. I used the Jan 1 through Nov 17 2014 timefram to build my model because expiration policies were consistent during the timeframe.
+
+The most important file is model.py which is used to train and test the model. The model converts the categorical features into around 250 dummy variables. It tokenizes and lemmatizes the text describing the loan use and creates a vector of the 250 most common terms after the stop words are removed. I used a weighted random forest which I had to tune quite a bit to avoid overfitting. I also tried logistic regression and SVM but they did not perform quite as well. My model can output a confusion matrix and a list of feature importances, which I use to make reccomendations on how microfinance organizations can imrove their odds of getting their loans funded.
+
+The plots.py file is used to make univariate plots of some of the important features.
 
 ##References:
 

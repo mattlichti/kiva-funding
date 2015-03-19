@@ -30,32 +30,6 @@ def expired_plot(df):
 	plt.hist(expired,bins=z)
 	plt.show()
 
-def expired_plot2(df):
-	months = get_months(df)
-	fundedm = []
-	expirem = []
-	expper = []
-	for month in months:
-		expired = len(month[month.expired])
-		funded = len(month[~month.expired])
-		fundedm.append(funded)
-		expirem.append(expired)
-		exp = expired/float(expired+funded)
-		expper.append(exp)
-	# plt.bar(range(1,12),fundedm, expirem)
-	# plt.bar(range(1,12),expirem, expirem)
-	plt.bar(range(1,12),expper)
-	plt.ylabel('expiration rate')
-	plt.xticks(range(1,12),['Jan','Feb','Mar','April','May','June','July','Aug','Sep','Oct','Nov'])
-
-
-	plt.show()
-	# z = list(np.arange(2014.1,2015,1./12))
-	# plt.hist(funded,bins=z)
-	# plt.hist(expired,bins=z)
-	# plt.show()
-
-
 def expr_time(df):
 	plt.scatter((df.posted_date.values - np.datetime64(44, 'Y'))/np.timedelta64(1, 'D')/365 + 2014,df.days_available)
 	plt.show()
@@ -92,7 +66,19 @@ def get_time_periods(df):
 	augsep = df[(df.posted_date > '2014-8-01') & (df.posted_date < '2014-10-01')]
 	apsep = df[(df.posted_date > '2014-4-01') & (df.posted_date < '2014-10-01')]
 	augnov = df[(df.posted_date > '2014-8-01') & (df.posted_date < '2014-12-01')]
+	apnov = df[df.posted_date > '2014-4-01']
 	return apsep, augsep
+
+def train_set(df):	
+	'''trained on April through September loans. All loans in this timeframe
+	   have 30 day expiration policy so all were funded or expired by Oct 30'''
+	return df[(df.posted_date > '2014-4-01') & (df.posted_date < '2014-10-01')]
+
+def test_set(df):
+	'''testing on November up until expiration policy switched from normal
+	   30 days to the Christmas 45 day expiration period'''
+	return df[df.posted_date > '2014-11-01']
+
 
 if __name__ == '__main__':
 	pickl2014()

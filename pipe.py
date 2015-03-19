@@ -5,20 +5,46 @@ import glob
 import os
 import random
 
-address = "/home/matt/gdrive/final_project/Fundraising-Success/data/loans/" # my laptop
-# address = "/Users/datascientist/matt/project/loans/" # mac mini
-min_date = '2012-01-25' # last loan without expiration posted at 2012-01-24 18:30:04
-max_date = '2014-12-22' # 45 days before end of data Feb 5
+min_date = '2012-01-25' # when kiva expiration policy fully implemented
+max_date = '2014-12-22' # last day when all loans in dataset could expire
 
-
-def import_loans(folder,address=address):
+def import_loans(address):
+    '''
+    Input address of folder full of json files
+    Output python list of kiva loans
+    ''' 
     lst = []
-    os.chdir(address + folder)
+    os.chdir(address)
     for file in glob.glob("*.json"):
         f = open(file)
         dic = json.loads(f.readline())
         lst +=(dic['loans'])
     return lst
+
+def build_df(lst):
+    '''
+    converts list of kiva loans into df, drops the data that was generated
+    after loan was funded, and extracts most useful features
+    '''
+
+    df = pd.DataFrame(lst)
+    droplist = ['basket_amount','currency_exchange_loss_amount','delinquent',
+                'paid_date', 'paid_amount', 'journal_totals', 'payments']
+    droplist += ['lender_count', 'funded_date','funded_amount']
+    droplist += ['translator', 'video']
+    df.drop(droplist,axis=1,inplace=True)
+
+    df = get_country(df)
+    df = get_desc(df)
+    df = payment_terms(df)
+    df = borrower_info(df)
+    df = expiration_date(df)
+
+    # throwing away image template info because they only have one template
+    df['image'] = df.image.map(lambda x: x['id'])
+
+    df = df[(df.posted_date < max_date) & (df.posted_date > min_date)]
+    return df
 
 def get_country(df):
     ldf = pd.DataFrame(list(df.location))
@@ -48,37 +74,19 @@ def borrower_info(df):
     return df
 
 def expiration_date(df):
+    '''
+    calculates days loan is available on site until planned expiration
+    '''
+
     df['posted_date'] = pd.to_datetime(df.posted_date)
     df['planned_expiration_date'] = pd.to_datetime(df.planned_expiration_date)
-    df['days_available'] = ((df.planned_expiration_date - df.posted_date)/np.timedelta64(1, 'D')).round().astype(int)
+    df['days_available'] = ((df.planned_expiration_date - df.posted_date)/
+                            np.timedelta64(1, 'D')).round().astype(int)
     df.drop('planned_expiration_date',axis=1,inplace=True)
-    return df
-
-def build_df(lst):
-    df = pd.DataFrame(lst)
-
-    droplist = ['basket_amount','currency_exchange_loss_amount','delinquent', 'paid_date', 'paid_amount', 'journal_totals', 'payments']
-    droplist += ['lender_count', 'funded_date','funded_amount']
-    droplist += ['translator', 'video']
-    df.drop(droplist,axis=1,inplace=True)
-
-    df = get_country(df)
-    df = get_desc(df)
-    df = payment_terms(df)
-    df = borrower_info(df)
-    df = expiration_date(df)
-
-    #throwing away image template info because only one template
-    df['image'] = df.image.map(lambda x: x['id'])
-
-    # df = df[df.posted_date < max_date]
-    # df = df[df.posted_date > min_date]
-
     return df
 
 def get_start_date(df):
     print df[df.planned_expiration_date.isnull()].posted_date.max()
-
 
 def dump(df, fname):
     loans = df.to_json()
@@ -111,17 +119,7 @@ def load_cleaned(lst,drops = [],reindex=False):
         df = df.set_index('id')
     return df
 
-def last_pipe():
-    df = load_cleaned(['everything1','everything2'],drops = ['image', 'name', 'partner_id'],reindex=True)
+def condense_jsons(file_list):
+    df = load_cleaned(file_list, drops = ['image', 'name', 'partner_id'],
+                                 reindex=True)
     dump(df,'everything.json')
-
-if __name__ == '__main__':
-    # clean_and_dump(['700s', '800s', '900s', '1000s', '1100s', '1200s', '1300s', '1400s', '1500s', '1600s'])
-    # df = load_cleaned(['700s', '800s', '900s', '1000s', '1100s'], drops = ['description'])
-    # df.index = range(df.shape[0])
-    # dump(df,'everything1.json')
-
-    # df = load_cleaned(['1200s', '1300s', '1400s', '1500s', '1600s'], drops = ['description'])    
-    # df.index = range(df.shape[0])
-    # dump(df,'everything2.json')
-    pass

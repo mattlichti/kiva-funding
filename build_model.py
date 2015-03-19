@@ -56,8 +56,8 @@ class FundingModel(object):
     def transform_features(self, df):
         '''adding dummy variables for country, sector, repayment_interval, 
            and activity and making gender and currency_loss boolean'''
+        
         df = self.get_themes(df)
-
         dummy_dfs = []
         for feature in ['sector', 'country', 'repayment_interval', 'activity']: 
             dummy_df = pd.get_dummies(df[feature]).astype(bool)
@@ -71,7 +71,7 @@ class FundingModel(object):
         df = pd.concat(dummy_dfs + [df], axis=1)
         df = df.drop(['posted_date', 'sector', 'use', 'country',
                       'activity', 'repayment_interval'], axis=1)
-        
+
         print df.info()
         return df
 
@@ -115,8 +115,8 @@ class FundingModel(object):
         df_cols = set(df.columns)
         fit_cols = set(self.columns)
         new_cols = fit_cols.difference(df_cols)
-        del_cols = df_cols.difference(fit_cols) 
-        df = df.drop(list(del_cols),axis=1)
+        del_cols = df_cols.difference(fit_cols)
+        df = df.drop(list(del_cols), axis=1)
 
         for new_col in new_cols:
             df[new_col] = 0
