@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-import pipe
+import data_pipeline
 
 def timeframe(df):
 	end = df[df.days_available == 45].posted_date.min()
@@ -35,13 +35,13 @@ def expr_time(df):
 	plt.show()
 
 def timeframe2014():
-	df = pipe.load_cleaned(['everything'])
+	df = data_pipeline.load_cleaned(['everything'])
 	df = timeframe(df)
 	df = binarize(df)
-	pipe.dump(df,'timeframe.json')
+	data_pipeline.dump(df,'timeframe.json')
 
 def pickl2014():
-	df = pipe.load_cleaned(['everything'])
+	df = data_pipeline.load_cleaned(['everything'])
 	df = timeframe(df)
 	df['expired'] = df.status == 'expired'
 	df = df[df.status != 'refunded']

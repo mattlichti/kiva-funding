@@ -13,7 +13,6 @@ Kiva has data on 844,000 loans at http://build.kiva.org/. They archive the publi
 ##Feature Engineering 
 
 ![Kiva Loan](https://github.com/mattlichti/Fundraising-Success/blob/master/img/features.jpg)
-testing 456
 
 The features include country (categorical, 84 countries), sector (15 categories like transportation,  agriculture), loan Amount, whether it is an individual or group loan, gender, and the specific activity (150 categories like "rickshaw" or "cattle") . I also used TFIDF and a lemmatizer to vectorize the one sentence description of how the loan will be used. The loans also have various searchable attributes like "green", "fair trade", "conflict zones", etc.
 
@@ -23,22 +22,6 @@ The file pipe.py is used to read in the 1600 json files and convert them into pa
 
 The most important file is model.py which is used to train and test the model. The model converts the categorical features into around 250 dummy variables. It tokenizes and lemmatizes the text describing the loan use and creates a vector of the 250 most common terms after the stop words are removed. I used a weighted random forest which I had to tune quite a bit to avoid overfitting. I also tried logistic regression and SVM but they did not perform quite as well. My model can output a confusion matrix and a list of feature importances, which I use to make reccomendations on how microfinance organizations can imrove their odds of getting their loans funded.
 
-The plots.py file is used to make univariate plots of some of the important features.
+The plots.py file is used to make univariate plots of some of the important features. Plots of the expiration rate by gender, repayment schedule, and month are in the plot folder.
 
-##References:
-
-#####Other research projects on Kiva Loan Funding:
-
-http://gauravparuthi.com/kiva-networks/
-
-http://www.rug.nl/research/globalisation-studies-groningen/research/conferencesandseminars/conferences/eumicrofinconf2011/papers/1new.9.theseira.pdf
-
-####Misc
-
-http://www.kiva.org/about/stats
-
-http://www.kiva.org/team/xprd_lns
-
-http://www.kiva.org/updates/kiva/2011/12/11/kiva-launches-social-performance-badges-and-increases-the-information-available-for-your-lending-decisions.html
-
-http://www.ted.com/talks/dan_pallotta_the_way_we_think_about_charity_is_dead_wrong/transcript?language=en
+presentation_slides.pdf is the slides for a 3 minute presentation on my project and results.

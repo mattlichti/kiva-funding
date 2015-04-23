@@ -40,7 +40,7 @@ def build_df(lst):
     df = borrower_info(df)
     df = expiration_date(df)
 
-    # throwing away image template info because they only have one template
+    # dropping image template info because they only have one template
     df['image'] = df.image.map(lambda x: x['id'])
 
     df = df[(df.posted_date < max_date) & (df.posted_date > min_date)]
