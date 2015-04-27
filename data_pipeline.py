@@ -3,58 +3,19 @@ import numpy as np
 import json
 import glob
 import os
-import random
-
 
 def import_loans(address):
     '''
     Input address of folder full of json files
-    Output python list of kiva loans
+    Output dataframe of kiva loans
     ''' 
     lst = []
     for file in glob.glob(address + "/*.json"):
         f = open(file)
         dic = json.loads(f.readline())
         lst +=(dic['loans'])
-    return lst
-
-def build_df(lst):
-    '''
-    Converts list of kiva loans into pandas dataframe, drops the data 
-    that was generated after loan was funded (since that data will not
-    be available for future predictions), and extracts the features that
-    will be most useful for prediction whether loans get funded
-    '''
-
     df = pd.DataFrame(lst)
-    droplist = ['basket_amount','currency_exchange_loss_amount','delinquent',
-                'paid_date', 'paid_amount', 'journal_totals', 'payments',
-                'lender_count', 'funded_date','funded_amount','translator', 
-                'video', 'tags']
-    df.drop(droplist,axis=1,inplace=True)
-
-    df = get_country(df)
-    df = get_desc(df)
-    df = payment_terms(df)
-    df = borrower_info(df)
-    df = expiration_date(df)
-
-    # dropping image template info because they only have one template
-    df['image'] = df.image.map(lambda x: x['id'])
-
-    # filtering by date
-    min_date = '2012-01-25' # when kiva expiration policy fully implemented
-    max_date = '2014-12-22' # last day when all loans in dataset could expire
-    df = df[(df.posted_date < max_date) & (df.posted_date > min_date)]
-    return df
-
-def get_country(df):
-    '''
-    extracts the country from the location information and drops
-    the rest of the location data
-    '''
-    df['country'] = df.location.map(lambda x: x['country_code'])
-    df.drop('location',axis=1,inplace=True)
+    df = df.drop_duplicates(['id'])        
     return df
 
 def get_desc(df):
@@ -82,17 +43,19 @@ def payment_terms(df):
 
 def borrower_info(df):
     ''' 
-    Extracts group size and gender and drops other borrower info
+    Extracts country, group size, gender, and drops other borrower info
     '''
+    df['country'] = df.location.map(lambda x: x['country_code'])
     df['group_size'] = df.borrowers.map(lambda x: len(x))
     df['gender'] = df.borrowers.map(lambda x: x[0]['gender'])
-    df.drop('borrowers',axis=1,inplace=True)
+    df.drop(['borrowers', 'location'],axis=1,inplace=True)
     return df
 
-def expiration_date(df):
+def transform_dates(df):
     '''
+    Converts posted date to datetime object
     calculates the number of days the loan is available on kiva from the 
-    posted date until planned expiration date
+    posted date until planned expiration date as timedelta object
     '''
     df['posted_date'] = pd.to_datetime(df.posted_date)
     df['planned_expiration_date'] = pd.to_datetime(df.planned_expiration_date)
@@ -101,41 +64,65 @@ def expiration_date(df):
     df.drop('planned_expiration_date',axis=1,inplace=True)
     return df
 
-def get_start_date(df):
-    print df[df.planned_expiration_date.isnull()].posted_date.max()
+def filter_by_date(df):
+    min_date = '2012-01-25' # when kiva expiration policy fully implemented
+    max_date = '2014-12-22' # last day when all loans in dataset could expire
+    df = df[(df.posted_date < max_date) & (df.posted_date > min_date)]
+    return df
 
-def dump_to_json(df, fname):
+def build_df(address, model='simple'):
+    '''
+    Loads and transforms the data, drops the data that was generated after loan
+    was funded (since that data will not be available for future predictions)
+    '''
+    droplist = ['basket_amount','currency_exchange_loss_amount','delinquent',
+                'paid_date', 'paid_amount', 'journal_totals', 'payments',
+                'lender_count', 'funded_date','funded_amount','translator', 
+                'video', 'tags']
+    df = import_loans(address)
+    df.drop(droplist,axis=1,inplace=True)
+    df = payment_terms(df)
+    df = borrower_info(df)
+    df = transform_dates(df)
+    df = filter_by_date(df)
+
+
+    if model == 'complex': # model that uses description text
+        df = get_desc(df)
+        df['image'] = df.image.map(lambda x: x['id'])
+    else:
+        df.drop(['image', 'name', 'partner_id', 'description'], axis=1, inplace=True)
+    
+    df = df.set_index('id')
+    return df
+
+def get_start_date(df):
+    '''outputs the date when kiva fully implemented their expiration policy'''
+
+def dump_to_pickle(df, filename):
+    ''' save cleaned dataframe as pickle'''
+    df.to_pickle('data/' + filename + '.pkl')
+
+def load_pickles(lst):
+    '''input list of locations of pickled dataframes
+       output dataframe that merges all the pickles
+       useful when cleaning data in batches'''
+    dfs = []
+    for pick in lst:
+        df = pd.io.pickle.read_pickle('data/pickles/'+ pick +'.pkl')
+        dfs.append(df)
+    df = pd.concat(dfs,axis=0)
+    return df
+
+def save_as_json(df, filename):
+    '''save cleaned dataframe as json'''
     loans = df.to_json()
     os.chdir(address + 'dumps')
-    with open(fname, 'w') as outfile:
+    with open(filename, 'w') as outfile:
         json.dump(loans, outfile)
 
-def clean_and_dump(folders):
+def transform_jsons(folders):
     for folder in folders:
         lst = import_loans(folder)
         df = build_df(lst)
         dump_to_json(df,folder +'.json')
-
-def load_cleaned(lst,drops = [],reindex=False):
-    os.chdir(address + 'dumps')
-    dfs = []
-    for jsn in lst:
-        f = open(jsn + '.json')
-        dic = json.loads(f.read())
-        f.close()
-        df = pd.read_json(dic)
-        if drops != []:
-            df.drop(drops,axis=1,inplace=True)
-        dfs.append(df)
-    # return pd.concat(dfs,axis=0)
-    df = pd.concat(dfs,axis=0)
-    df.posted_date = pd.to_datetime(df.posted_date*10**6)
-    if reindex:
-        df = df.drop_duplicates(['id'])        
-        df = df.set_index('id')
-    return df
-
-def condense_jsons(file_list):
-    df = load_cleaned(file_list, drops = ['image', 'name', 'partner_id'],
-                                 reindex=True)
-    dump(df,'everything.json')
