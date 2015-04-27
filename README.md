@@ -18,10 +18,12 @@ The features include country (categorical, 84 countries), sector (15 categories 
 
 ##Process:
 
-The file pipe.py is used to read in the 1600 json files and convert them into pandas dataframes. A lot of the useful data is several dictionaries deep in the json file and needs a lot of preprocessing to extract the useful information. The cleaned up data can then be saved as json files or a pickle with pipe.py The filter.py file is used to choose a date ranges to build and test the models. The timeframe for my model was chosen based on loan expiration times. I determined that kiva changed their expiration policies during the Christmas 2013 and Christmas 2014 seasons, making it hard to compare expiration rates during that timefram to the rest of the year. I used the Jan 1 through Nov 17 2014 timefram to build my model because expiration policies were consistent during the timeframe.
+The file data_pipeline.py is used to read in the 1600 json files and convert them into pandas dataframes. A lot of the useful data is several dictionaries deep in the json file and needs a lot of preprocessing to extract the useful information. The cleaned data can then be saved as json or a pickle. 
+
+The filter.py file is used to choose a date ranges to build and test the models. The timeframe for my model was chosen based on loan expiration times. I determined that kiva changed their expiration policies during the Christmas 2013 and Christmas 2014 seasons, making it hard to compare expiration rates during that timefram to the rest of the year. I used the Jan 1 through Nov 17 2014 timefram to build my model because expiration policies were consistent during the timeframe.
 
 The most important file is model.py which is used to train and test the model. The model converts the categorical features into around 250 dummy variables. It tokenizes and lemmatizes the text describing the loan use and creates a vector of the 250 most common terms after the stop words are removed. I used a weighted random forest which I had to tune quite a bit to avoid overfitting. I also tried logistic regression and SVM but they did not perform quite as well. My model can output a confusion matrix and a list of feature importances, which I use to make reccomendations on how microfinance organizations can imrove their odds of getting their loans funded.
 
 The plots.py file is used to make univariate plots of some of the important features. Plots of the expiration rate by gender, repayment schedule, and month are in the plot folder.
 
-presentation_slides.pdf is the slides for a 3 minute presentation on my project and results.
+presentation_slides.pdf is the slides I used for a 3 minute presentation on my project and results.
