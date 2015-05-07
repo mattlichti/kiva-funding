@@ -5,7 +5,6 @@ import filter
 import build_model
 import seaborn
 
-
 def load_transformed():
     df = pd.io.pickle.read_pickle('data/transformed2.pkl')
     return df
@@ -15,6 +14,7 @@ def load_untrans():
     return df
 
 def expired_plot(df):
+    '''plot expiration rate by month for 2014'''
     months = filter.get_months(df)
     fundedm = []
     expirem = []
@@ -56,15 +56,14 @@ def gender(df):
     plt.ylabel('Expiration Rate')
     plt.show()
 
-
-
 def feat_imp(df):
     mod = build_model.FundingModel()
     mod.fit(df)
     mod.feat_imp()
 
 def repayment(df):
-    '''try running predict on irregular loans with all the payment interval info dropped to see if model can identify it as high risk in other ways'''
+    '''try running predict on irregular loans with all the payment interval
+    info dropped to see if model can identify it as high risk in other ways'''
     df = load_untrans()
     months = filter.get_months(df)
     print "months"
@@ -77,18 +76,12 @@ def repayment(df):
         print df[df['repayment_interval: Monthly']].expired.mean()
         print df[df['repayment_interval: At end of term']].expired.mean()
         print ""
-
-
-
      # print df[~df['sector: Agriculture'] & df['repayment_interval: Irregularly']].expired.mean()
-
 
 def themes(df):
     print df[df['theme: none']].expired.mean()
     print df[~df['theme: none']].expired.mean()
     print df[~df['theme: Water and Sanitation']].expired.mean()
-
-
 
 def bla(df):
     print df[df['use: pay']>0].expired.mean()
