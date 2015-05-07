@@ -4,6 +4,8 @@ import json
 import glob
 import os
 from sqlalchemy import create_engine
+import psycopg2
+
 
 class Pipeline(object):
 
@@ -128,3 +130,22 @@ class Pipeline(object):
         loans = self.df.to_json()
         with open(filename, 'w') as outfile:
             json.dump(loans, outfile)
+
+    def mergedb(self, pw, tablist, new_tab):
+        conn = psycopg2.connect(dbname='kiva', user='matt', host='localhost', password = pw)
+        c = conn.cursor()
+        query = 'Create TABLE ' + new_tab + ' AS '
+        for tab in tablist[:-1]:
+            query +=  '(SELECT * FROM ' + tab + ') union '
+        query +=  '(SELECT * FROM ' + tablist[-1] + ');'
+        for tab in tablist:
+            query += ' DROP TABLE ' + tab + ';' 
+        c.execute(query)
+        conn.commit()
+        conn.close()
+
+def run_sql(pw, lst = ['1300s', '1400s']):
+    p = Pipeline()
+    for folder in lst:
+        p.build_df('data/loans/' + folder)
+        p.export_to_sql('loans_' + folder, pw)
