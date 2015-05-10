@@ -84,23 +84,22 @@ class Pipeline(object):
         self.date_fetched) & (self.df.posted_date > self.min_date)]
         self.df.drop('planned_expiration_date',axis=1,inplace=True)
 
-    def build_df(self, address, model='simple'):
+    def build_df(self, simple_mod = True):
         '''
         Loads and transforms the data, drops data that was generated after 
         loan was posted 
         '''
-        self.import_loans(address)
         self.df.drop(self.droplist,axis=1,inplace=True)
         self.payment_terms()
         self.borrower_info()
         self.transform_dates()
         self.filter_by_date()
 
-        if model == 'complex': # model that uses description text
+        if simple_mod:
+            self.df.drop(['image', 'name', 'partner_id', 'description'], axis=1, inplace=True)
+        else: # model that uses description text
             self.get_desc()
             self.df['image'] = self.df.image.map(lambda x: x['id'])
-        else:
-            self.df.drop(['image', 'name', 'partner_id', 'description'], axis=1, inplace=True)
         self.df = self.df.set_index('id')
 
     def export_to_sql(self, table, password):
@@ -149,10 +148,29 @@ class Pipeline(object):
         conn.commit()
         conn.close()
 
+    def load_and_export_to_sql(self, address, pw):
+        '''
+        in progress
+        ''' 
+        lst = []
+        n = 0
+        for file in glob.glob(address + "/*.json"):
+            f = open(file)
+            dic = json.loads(f.readline())
+            lst +=(dic['loans'])
+            n =+ 1
+            if n%10 == 0:
+                self.date_fetched = str(dic['header']['date'])[0:10]
+                self.df = pd.DataFrame(lst)
+                self.df = self.df.drop_duplicates(['id'])      
+                self.build_df()
+                self.export_to_sql('temp_' + str(n), pw)
+
 def run_sql(pw, lst = ['1601','1602','1100s', '1200s']):
     p = Pipeline()
     for folder in lst:
-        p.build_df('data/loans/' + folder)
+        p.import_loans('data/loans/' + folder)
+        p.build_df()
         print 'built df'
         p.export_to_sql('temp_' + folder, pw)
         print 'in sql'
