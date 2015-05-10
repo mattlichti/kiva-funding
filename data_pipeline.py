@@ -17,7 +17,7 @@ class Pipeline(object):
         '''droplist mostly contains data that can't be used in model because
         it was generated after loan was posted'''
         self.min_date = '2012-01-25' # date kiva expiration policy implemented
-        self.max_date = '2014-12-22' # last date when all loans could expire
+        self.date_fetched = None # date the loan info fetched from kiva API
         self.df = None # pandas dataframe of loan info
 
     def import_loans(self, address):
@@ -30,8 +30,9 @@ class Pipeline(object):
             f = open(file)
             dic = json.loads(f.readline())
             lst +=(dic['loans'])
+        self.date_fetched = str(dic['header']['date'])[0:10]
         self.df = pd.DataFrame(lst)
-        self.df = self.df.drop_duplicates(['id'])        
+        self.df = self.df.drop_duplicates(['id'])   
 
     def get_desc(self):
         '''
@@ -73,11 +74,15 @@ class Pipeline(object):
         self.df['planned_expiration_date'] = pd.to_datetime(self.df.planned_expiration_date)
         self.df['days_available'] = ((self.df.planned_expiration_date - self.df.posted_date)/
                                 np.timedelta64(1, 'D')).round().astype(int)
-        self.df.drop('planned_expiration_date',axis=1,inplace=True)
 
     def filter_by_date(self):
-        self.df = self.df[(self.df.posted_date < self.max_date) &
-        (self.df.posted_date > self.min_date)]
+        ''' 
+        filters out loans with a planned expiration date after the data 
+        was fetched and loans posted before kiva expiration policy implemented
+        '''
+        self.df = self.df[(self.df.planned_expiration_date < 
+        self.date_fetched) & (self.df.posted_date > self.min_date)]
+        self.df.drop('planned_expiration_date',axis=1,inplace=True)
 
     def build_df(self, address, model='simple'):
         '''
@@ -144,8 +149,12 @@ class Pipeline(object):
         conn.commit()
         conn.close()
 
-def run_sql(pw, lst = ['1300s', '1400s']):
+def run_sql(pw, lst = ['1601','1602','1100s', '1200s']):
     p = Pipeline()
     for folder in lst:
         p.build_df('data/loans/' + folder)
-        p.export_to_sql('loans_' + folder, pw)
+        print 'built df'
+        p.export_to_sql('temp_' + folder, pw)
+        print 'in sql'
+    p.mergedb(pw,['temp_' + item for item in lst],'mdb')
+    
