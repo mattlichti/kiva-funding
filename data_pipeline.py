@@ -89,6 +89,7 @@ class Pipeline(object):
         Loads and transforms the data, drops data that was generated after 
         loan was posted 
         '''
+        self.df = self.df.drop_duplicates(['id'])      
         self.df.drop(self.droplist,axis=1,inplace=True)
         self.payment_terms()
         self.borrower_info()
@@ -138,7 +139,8 @@ class Pipeline(object):
     def mergedb(self, pw, tablist, new_tab):
         conn = psycopg2.connect(dbname='kiva', user='matt', host='localhost', password = pw)
         c = conn.cursor()
-        query = 'Create TABLE ' + new_tab + ' AS '
+        query = 'DROP TABLE IF EXISTS ' + new_tab + '; '
+        query+= 'Create TABLE ' + new_tab + ' AS '
         for tab in tablist[:-1]:
             query +=  '(SELECT * FROM ' + tab + ') union '
         query +=  '(SELECT * FROM ' + tablist[-1] + ');'
@@ -148,23 +150,27 @@ class Pipeline(object):
         conn.commit()
         conn.close()
 
-    def load_and_export_to_sql(self, address, pw):
+    def load_and_export_to_sql(self, address, pw, batch = 50):
         '''
-        in progress
+        imports, transforms, and loads loan data into sql
         ''' 
         lst = []
-        n = 0
-        for file in glob.glob(address + "/*.json"):
+        dblst = []
+        for n, file in enumerate(glob.glob(address + "/*.json")):
             f = open(file)
             dic = json.loads(f.readline())
             lst +=(dic['loans'])
-            n =+ 1
-            if n%10 == 0:
+            print n
+            if (n%batch == (batch-1)) | (n == (len(glob.glob(address + "/*.json"))-1)):
                 self.date_fetched = str(dic['header']['date'])[0:10]
                 self.df = pd.DataFrame(lst)
-                self.df = self.df.drop_duplicates(['id'])      
                 self.build_df()
                 self.export_to_sql('temp_' + str(n), pw)
+                dblst.append('temp_' + str(n))
+                lst = []
+                print dblst
+        self.mergedb(pw,dblst,'mmmm')
+
 
 def run_sql(pw, lst = ['1601','1602','1100s', '1200s']):
     p = Pipeline()
