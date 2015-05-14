@@ -19,15 +19,14 @@ class Pipeline(object):
         self.min_date = '2012-01-25' # date kiva expiration policy implemented
         self.date_fetched = None # date the loan info fetched from kiva API
         self.df = None # pandas dataframe of loan info
-        self.tables = [] # sql tables storing the loan info
 
-    def import_loans(self, files):
+    def import_loans(self, address):
         '''
         Input address of folder containing raw json files from kiva api
         Creates pandas dataframe of the kiva loans
         ''' 
         lst = []
-        for file in files:
+        for file in glob.glob(address + "/*.json"):
             f = open(file)
             dic = json.loads(f.readline())
             lst +=(dic['loans'])
@@ -106,7 +105,6 @@ class Pipeline(object):
         engine_string = 'postgresql://matt:' + password + '@localhost:5432/kiva'
         engine = create_engine(engine_string)
         self.df.to_sql(table, engine)
-        self.tables.append(table)
 
     def load_from_sql(self, table, password):
         engine_string = 'postgresql://matt:' + password + '@localhost:5432/kiva'
@@ -136,31 +134,49 @@ class Pipeline(object):
         with open(filename, 'w') as outfile:
             json.dump(loans, outfile)
 
-    def mergedb(self, pw, new_tab):
+    def mergedb(self, pw, tablist, new_tab):
         conn = psycopg2.connect(dbname='kiva', user='matt', host='localhost', password = pw)
         c = conn.cursor()
         query = 'DROP TABLE IF EXISTS ' + new_tab + '; '
         query+= 'Create TABLE ' + new_tab + ' AS '
-        for tab in self.tables[:-1]:
+        for tab in tablist[:-1]:
             query +=  '(SELECT * FROM ' + tab + ') union '
-        query +=  '(SELECT * FROM ' + self.tables[-1] + ');'
-        for tab in self.tables:
+        query +=  '(SELECT * FROM ' + tablist[-1] + ');'
+        for tab in tablist:
             query += ' DROP TABLE ' + tab + ';' 
         c.execute(query)
         conn.commit()
         conn.close()
-        self.tables = [new_tab]
 
-    def sql_pipeline(self, address, pw, table_name = 'loans', batch = 50):
+    def load_and_export_to_sql(self, address, pw, batch = 50):
         '''
         imports, transforms, and loads loan data into sql
-        address is folder containing json files from kiva api
-        batch is the number of json files to transform at a time
         ''' 
-        filelist = glob.glob(address + "/*.json")
-        for n in xrange(0,(len(filelist)-1)/batch+1):
-            self.import_loans(filelist[n*batch:(n+1)*batch])
-            self.build_df()
-            self.export_to_sql('temp_' + str(n), pw)
-        self.mergedb(pw, table_name)
+        lst = []
+        dblst = []
+        for n, file in enumerate(glob.glob(address + "/*.json")):
+            f = open(file)
+            dic = json.loads(f.readline())
+            lst +=(dic['loans'])
+            print n
+            if (n%batch == (batch-1)) | (n == (len(glob.glob(address + "/*.json"))-1)):
+                self.date_fetched = str(dic['header']['date'])[0:10]
+                self.df = pd.DataFrame(lst)
+                self.build_df()
+                self.export_to_sql('temp_' + str(n), pw)
+                dblst.append('temp_' + str(n))
+                lst = []
+                print dblst
+        self.mergedb(pw,dblst,'mmmm')
 
+
+def run_sql(pw, lst = ['1601','1602','1100s', '1200s']):
+    p = Pipeline()
+    for folder in lst:
+        p.import_loans('data/loans/' + folder)
+        p.build_df()
+        print 'built df'
+        p.export_to_sql('temp_' + folder, pw)
+        print 'in sql'
+    p.mergedb(pw,['temp_' + item for item in lst],'mdb')
+    
