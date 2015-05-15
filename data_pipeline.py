@@ -9,6 +9,7 @@ import psycopg2
 
 class Pipeline(object):
 
+
     def __init__(self):
         self.droplist = ['basket_amount','currency_exchange_loss_amount',
                         'delinquent', 'paid_date', 'paid_amount','payments',
@@ -19,13 +20,20 @@ class Pipeline(object):
         self.min_date = '2012-01-25' # date kiva expiration policy implemented
         self.date_fetched = None # date the loan info fetched from kiva API
         self.df = None # pandas dataframe of loan info
+        self.sql = {'user':None, 'pw':None, 'db':None, 'host':None, 'port':None}
+        # self.db = None # name of SQL db
+        # self.sql_user = None
+        # self.sql_pw = None
         self.tables = [] # sql tables storing the loan info
+        self.sql_engine = None
 
-    def import_loans(self, files):
+    def import_loans(self, files = None, folder = None):
         '''
         Input address of folder containing raw json files from kiva api
         Creates pandas dataframe of the kiva loans
         ''' 
+        if folder:
+            files = glob.glob(folder + "/*.json")
         lst = []
         for file in files:
             f = open(file)
@@ -84,7 +92,7 @@ class Pipeline(object):
         self.date_fetched) & (self.df.posted_date > self.min_date)]
         self.df.drop('planned_expiration_date',axis=1,inplace=True)
 
-    def build_df(self, simple_mod = True):
+    def transform_df(self, simple_mod = True):
         '''
         Loads and transforms the data, drops data that was generated after 
         loan was posted 
@@ -102,17 +110,54 @@ class Pipeline(object):
             self.df['image'] = self.df.image.map(lambda x: x['id'])
         self.df = self.df.set_index('id')
 
-    def export_to_sql(self, table, password):
-        engine_string = 'postgresql://matt:' + password + '@localhost:5432/kiva'
-        engine = create_engine(engine_string)
-        self.df.to_sql(table, engine)
+
+    def setup_sql(self, user, pw, db = 'kiva', host = 'localhost', port = '5432'):
+        self.sql['db'] = db
+        self.sql['user'] = user
+        self.sql['pw'] = pw
+        self.sql['host'] = host
+        self.sql['port'] = str(port)
+        engstr = 'postgresql://' +user+':'+pw+'@'+host + ':' + port + '/' + db
+        self.sql_engine = create_engine(engstr)
+
+    def export_to_sql(self, table):
+        self.df.to_sql(table, self.sql_engine)
         self.tables.append(table)
 
-    def load_from_sql(self, table, password):
-        engine_string = 'postgresql://matt:' + password + '@localhost:5432/kiva'
-        engine = create_engine(engine_string)
+    def load_from_sql(self, table):
         query = 'SELECT * FROM ' + table + ';'
-        self.df = pd.read_sql_query(query, engine)
+        self.df = pd.read_sql_query(query, self.sql_engine)
+
+    def merge_db(self, new_tab):
+        conn = psycopg2.connect(dbname=self.sql['db'], user=self.sql['user'],\
+                            host=self.sql['host'], password = self.sql['pw'])
+        c = conn.cursor()
+        query = 'DROP TABLE IF EXISTS ' + new_tab + '; '
+        query+= 'Create TABLE ' + new_tab + ' AS '
+        for tab in self.tables[:-1]:
+            query +=  '(SELECT * FROM ' + tab + ') union '
+        query +=  '(SELECT * FROM ' + self.tables[-1] + ');'
+        for tab in self.tables:
+            query += ' DROP TABLE ' + tab + ';' 
+        c.execute(query)
+        conn.commit()
+        conn.close()
+        self.tables = [new_tab]
+
+    def sql_pipeline(self, address, user, pw, table_name = 'loans', batch = 50):
+        '''
+        imports, transforms, and loads loan data into sql
+        address is folder containing json files from kiva api
+        batch is the number of json files to transform at a time
+        ''' 
+        filelist = glob.glob(address + "/*.json")
+        self.setup_sql(user, pw)
+        for n in xrange(0,(len(filelist)-1)/batch+1):
+            self.import_loans(files = filelist[n*batch:(n+1)*batch])
+            self.transform_df()
+            self.export_to_sql('temp_' + str(n))
+        self.merge_db(table_name)
+
 
     def export_to_pickle(self, filename):
         ''' save cleaned dataframe as pickle'''
@@ -135,32 +180,3 @@ class Pipeline(object):
         loans = self.df.to_json()
         with open(filename, 'w') as outfile:
             json.dump(loans, outfile)
-
-    def mergedb(self, pw, new_tab):
-        conn = psycopg2.connect(dbname='kiva', user='matt', host='localhost', password = pw)
-        c = conn.cursor()
-        query = 'DROP TABLE IF EXISTS ' + new_tab + '; '
-        query+= 'Create TABLE ' + new_tab + ' AS '
-        for tab in self.tables[:-1]:
-            query +=  '(SELECT * FROM ' + tab + ') union '
-        query +=  '(SELECT * FROM ' + self.tables[-1] + ');'
-        for tab in self.tables:
-            query += ' DROP TABLE ' + tab + ';' 
-        c.execute(query)
-        conn.commit()
-        conn.close()
-        self.tables = [new_tab]
-
-    def sql_pipeline(self, address, pw, table_name = 'loans', batch = 50):
-        '''
-        imports, transforms, and loads loan data into sql
-        address is folder containing json files from kiva api
-        batch is the number of json files to transform at a time
-        ''' 
-        filelist = glob.glob(address + "/*.json")
-        for n in xrange(0,(len(filelist)-1)/batch+1):
-            self.import_loans(filelist[n*batch:(n+1)*batch])
-            self.build_df()
-            self.export_to_sql('temp_' + str(n), pw)
-        self.mergedb(pw, table_name)
-
