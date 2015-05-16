@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import json
 import glob
-import os
 from sqlalchemy import create_engine
 import psycopg2
 
@@ -21,11 +20,8 @@ class Pipeline(object):
         self.date_fetched = None # date the loan info fetched from kiva API
         self.df = None # pandas dataframe of loan info
         self.sql = {'user':None, 'pw':None, 'db':None, 'host':None, 'port':None}
-        # self.db = None # name of SQL db
-        # self.sql_user = None
-        # self.sql_pw = None
         self.tables = [] # sql tables storing the loan info
-        self.sql_engine = None
+        self.sql_engine = None # used with sqlalchemy
 
     def import_loans(self, files = None, folder = None):
         '''
@@ -92,6 +88,13 @@ class Pipeline(object):
         self.date_fetched) & (self.df.posted_date > self.min_date)]
         self.df.drop('planned_expiration_date',axis=1,inplace=True)
 
+    def transform_labels(self):
+        '''
+        '''
+        self.df['expired'] = self.df.status == 'expired'
+        self.df = self.df[self.df.status != 'refunded']
+        self.df = self.df.drop('status',axis=1)
+
     def transform_df(self, simple_mod = True):
         '''
         Loads and transforms the data, drops data that was generated after 
@@ -103,6 +106,7 @@ class Pipeline(object):
         self.borrower_info()
         self.transform_dates()
         self.filter_by_date()
+        self.transform_labels()
         if simple_mod:
             self.df.drop(['image', 'name', 'partner_id', 'description'], axis=1, inplace=True)
         else: # model that uses description text
@@ -111,12 +115,17 @@ class Pipeline(object):
         self.df = self.df.set_index('id')
 
 
-    def setup_sql(self, user, pw, db = 'kiva', host = 'localhost', port = '5432'):
+    def setup_sql(self, user, pw, db = 'kiva', host = 'localhost', port = '5432', tables = []):
+        '''
+        sets up sql connection for exporting and loading from sql
+        must be run before export_to_sql, load_from_sql, or merge_db
+        '''
         self.sql['db'] = db
         self.sql['user'] = user
         self.sql['pw'] = pw
         self.sql['host'] = host
         self.sql['port'] = str(port)
+        self.tables = tables
         engstr = 'postgresql://' +user+':'+pw+'@'+host + ':' + port + '/' + db
         self.sql_engine = create_engine(engstr)
 
@@ -124,8 +133,10 @@ class Pipeline(object):
         self.df.to_sql(table, self.sql_engine)
         self.tables.append(table)
 
-    def load_from_sql(self, table):
-        query = 'SELECT * FROM ' + table + ';'
+    def load_from_sql(self, table=None, date_range=['2000-01-01','2020-01-01']):
+        if table:
+            self.tables = table
+        query = 'SELECT * FROM ' + self.tables + " WHERE posted_date > '" + date_range[0] + "' AND posted_date < '" + date_range[1] + "';"
         self.df = pd.read_sql_query(query, self.sql_engine)
 
     def merge_db(self, new_tab):
@@ -142,13 +153,14 @@ class Pipeline(object):
         c.execute(query)
         conn.commit()
         conn.close()
-        self.tables = [new_tab]
+        self.tables = new_tab
 
-    def sql_pipeline(self, address, user, pw, table_name = 'loans', batch = 50):
+    def sql_pipeline(self, address, user, pw, table_name='loans', batch=50):
         '''
         imports, transforms, and loads loan data into sql
         address is folder containing json files from kiva api
         batch is the number of json files to transform at a time
+        default 50 files = 25,000 kiva loan records at 150 MB
         ''' 
         filelist = glob.glob(address + "/*.json")
         self.setup_sql(user, pw)
@@ -157,26 +169,3 @@ class Pipeline(object):
             self.transform_df()
             self.export_to_sql('temp_' + str(n))
         self.merge_db(table_name)
-
-
-    def export_to_pickle(self, filename):
-        ''' save cleaned dataframe as pickle'''
-        self.df.to_pickle('data/pickles/' + filename + '.pkl')
-
-    def load_from_pickles(self, lst):
-        '''input list of filenames of pickled dataframes
-           creates dataframe that merges all the pickled dfs'''
-        dfs = []
-        for pick in lst:
-            df = pd.io.pickle.read_pickle('data/pickles/'+ pick +'.pkl')
-            dfs.append(df)
-        self.df = pd.concat(dfs,axis=0)
-        self.df['id'] = self.df.index
-        self.df = self.df.drop_duplicates(['id'])        
-        self.df = self.df.set_index('id')
-
-    def export_to_json(self, filename):
-        '''save cleaned dataframe as json'''
-        loans = self.df.to_json()
-        with open(filename, 'w') as outfile:
-            json.dump(loans, outfile)
