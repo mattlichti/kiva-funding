@@ -4,6 +4,16 @@ import pandas as pd
 import numpy as np
 import data_pipeline
 
+def load_transformed():
+    df = pd.io.pickle.read_pickle('data/transformed2.pkl')
+    return df
+
+def load_untrans():
+    df = pd.io.pickle.read_pickle('data/2014_df.pkl')
+    return df
+
+
+
 def timeframe(df):
 	end = df[df.days_available == 45].posted_date.min()
 	start = df[df.days_available == 60].posted_date.max()
@@ -21,18 +31,6 @@ def binarize(df):
 	df['expired'] = df.status == 'expired'
 	df = df.drop(['repayment_interval','status',],axis=1)
 	return df
-
-def expired_plot(df):
-	funded = (df[df.status!='expired'].posted_date.values - np.datetime64(44, 'Y'))/np.timedelta64(1, 'D')/365 + 2014
-	expired = (df[df.status=='expired'].posted_date.values - np.datetime64(44, 'Y'))/np.timedelta64(1, 'D')/365 + 2014
-	z = list(np.arange(2012.1,2015,1./12))
-	plt.hist(funded,bins=z)
-	plt.hist(expired,bins=z)
-	plt.show()
-
-def expr_time(df):
-	plt.scatter((df.posted_date.values - np.datetime64(44, 'Y'))/np.timedelta64(1, 'D')/365 + 2014,df.days_available)
-	plt.show()
 
 def timeframe2014():
 	df = data_pipeline.load_cleaned(['everything'])
