@@ -11,18 +11,6 @@ from nltk.stem.wordnet import WordNetLemmatizer as lemmatizer
 class FundingModel(object):
 
     def __init__(self):
-        self.theme_list = sorted(['Underfunded Areas', 'Rural Exclusion',
-                                  'Vulnerable Groups', 'Conflict Zones',
-                                  'Mobile Technology', 'Green',
-                                  'Higher Education', 'Start-Up',
-                                  'Arab Youth', 'SME',
-                                  'Water and Sanitation', 'Youth',
-                                  'Islamic Finance', 'Job Creation',
-                                  'Fair Trade', 'Kiva City LA',
-                                  'Innovative Loans', 'Growing Businesses',
-                                  'Disaster recovery',
-                                  'Health', 'Kiva City Detroit',
-                                  'Flexible Credit Study', 'none'])
         self.vectorizer = None #  vectorizer object
         self.columns = [] #  list of columns in fit model
         self.tf_col = [] #  list of term freq columns in fit model 
@@ -48,11 +36,7 @@ class FundingModel(object):
         '''
         df['currency_loss'] = df.currency_loss == 'shared'
         df['gender'] = df.gender == 'F'
-        df['use_text_len'] = df.use.map(lambda x: len(x))
-
-        df.themes = df.themes.map(lambda x: x if type(x) == list else ['none'])
-        for theme in self.theme_list:
-            df['theme: '+str(theme)] = df.themes.map(lambda x: theme in x)
+        # df['use_text_len'] = df.use.map(lambda x: len(x))
 
         for feature in ['sector', 'country', 'repayment_interval', 'activity']:
             dummy_df = pd.get_dummies(df[feature]).astype(bool)

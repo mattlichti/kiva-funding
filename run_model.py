@@ -2,8 +2,6 @@ import data_pipeline
 import build_model
 import pandas as pd
 
-
-
 def run(user, pw, db='kiva', table='loans', host='localhost', port='5432'):
 	select = '''activity, bonus_credit_eligibility, loan_amount, sector,
 		  themes, use, repayment_interval, repayment_term, currency_loss,
