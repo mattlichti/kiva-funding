@@ -6,18 +6,19 @@ from sqlalchemy import create_engine
 import psycopg2
 from collections import defaultdict
 
+
 class Pipeline(object):
 
     def __init__(self):
         self.drop_cols = ['basket_amount', 'currency_exchange_loss_amount',
-                         'delinquent', 'paid_date', 'paid_amount', 'payments',
-                         'lender_count', 'funded_amount',
-                         'translator', 'video', 'tags', 'journal_totals']
+                          'delinquent', 'paid_date', 'paid_amount', 'payments',
+                          'lender_count', 'funded_amount',
+                          'translator', 'video', 'tags', 'journal_totals']
 
         self.themes = ('Underfunded Areas', 'Rural Exclusion', 'Start-Up',
                        'Vulnerable Groups', 'Conflict Zones', 'Youth', 'SME',
                        'Mobile Technology', 'Green', 'Job Creation', 'Health',
-                       'Higher Education', 'Arab Youth', 'Islamic Finance', 
+                       'Higher Education', 'Arab Youth', 'Islamic Finance',
                        'Water and Sanitation', 'Fair Trade', 'Kiva City LA',
                        'Innovative Loans', 'Growing Businesses',
                        'Disaster recovery', 'Kiva City Detroit',
@@ -49,16 +50,16 @@ class Pipeline(object):
         extracts the English description and drops the description
         in other languages
         '''
-        self.df['description'] = self.df.description.map(lambda x: \
-                x['texts']['en'] if 'en' in x['languages'] else '')
+        self.df['description'] = self.df.description.map(
+            lambda x: x['texts']['en'] if 'en' in x['languages'] else '')
         self.df['use_text_len'] = self.df.use.map(lambda x: len(x))
         self.df['desc_text_len'] = self.df.description.map(lambda x: len(x))
 
     def transform_themes(self):
-        self.df.themes = self.df.themes.map(lambda x: x if type(x) == list \
-                         else ['none'])
+        self.df.themes = self.df.themes.map(
+            lambda x: x if type(x) == list else ['none'])
         for theme in self.themes:
-            self.df['theme_'+str(theme).replace(' ','_').lower()] = \
+            self.df['theme_'+str(theme).replace(' ', '_').lower()] = \
                 self.df.themes.map(lambda x: theme in x)
         self.df.drop('themes', axis=1, inplace=True)
 
@@ -68,12 +69,12 @@ class Pipeline(object):
         repayment term (in months), and potential currency loss info
         and drops the rest of the repayment info
         '''
-        self.df['repayment_interval'] = self.df.terms.map(lambda x: \
-                                        x['repayment_interval'])
-        self.df['repayment_term'] = self.df.terms.map(lambda x: \
-                                    x['repayment_term'])
-        self.df['currency_loss'] = self.df.terms.map(lambda x: \
-                    x['loss_liability']['currency_exchange']=='shared')
+        self.df['repayment_interval'] = self.df.terms.map(
+            lambda x: x['repayment_interval'])
+        self.df['repayment_term'] = self.df.terms.map(
+            lambda x: x['repayment_term'])
+        self.df['currency_loss'] = self.df.terms.map(
+            lambda x: x['loss_liability']['currency_exchange'] == 'shared')
         self.df.drop('terms', axis=1, inplace=True)
 
     def borrower_info(self):
@@ -83,7 +84,8 @@ class Pipeline(object):
         self.df['country'] = self.df.location.map(lambda x: x['country_code'])
         self.df['group_size'] = self.df.borrowers.map(lambda x: len(x))
         self.df['image'] = self.df.image.map(lambda x: x['id'])
-        self.df['gender'] = self.df.borrowers.map(lambda x: x[0]['gender']=='F')
+        self.df['gender'] = self.df.borrowers.map(
+            lambda x: x[0]['gender'] == 'F')
         self.df['anonymous'] = self.df.name.map(lambda x: x == 'Anonymous')
         self.df.drop(['borrowers', 'location'], axis=1, inplace=True)
 
@@ -101,7 +103,11 @@ class Pipeline(object):
                                      self.df.posted_date)/np.timedelta64
                                      (1, 'D')).round().astype(int)
         self.df['end_date'] = pd.to_datetime(self.df.funded_date)
-        self.df['end_date'][self.df.end_date.isnull()] = self.df.planned_expiration_date
+        self.df['end_date'][self.df.end_date.isnull()] = \
+            self.df.planned_expiration_date
+        self.df['days_on_kiva'] = ((self.df.end_date -
+                                   self.df.posted_date)/np.timedelta64
+                                   (1, 'D')).round().astype(int)
         self.df.drop('funded_date', axis=1, inplace=True)
 
     def filter_by_date(self):
@@ -109,8 +115,9 @@ class Pipeline(object):
         filters out loans with a planned expiration date after the data
         was fetched and loans posted before kiva expiration policy implemented
         '''
-        self.df = self.df[(self.df.planned_expiration_date < self.df.date_fetched)
-                          & (self.df.posted_date > self.min_date)]
+        self.df = self.df[(self.df.planned_expiration_date <
+                           self.df.date_fetched) &
+                          (self.df.posted_date > self.min_date)]
 
     def transform_labels(self):
         '''
@@ -150,7 +157,7 @@ class Pipeline(object):
         self.sql['host'] = host
         self.sql['port'] = str(port)
         self.tables = tables
-        engstr = 'postgresql://%s:%s@%s:%s/%s' %(user, pw, host, port, db)
+        engstr = 'postgresql://%s:%s@%s:%s/%s' % (user, pw, host, port, db)
         self.sql_engine = create_engine(engstr)
 
     def export_to_sql(self, table):
@@ -161,38 +168,44 @@ class Pipeline(object):
         self.df.to_sql(table, self.sql_engine)
         self.tables.append(table)
 
-    def load_from_sql(self, table=None, where='', date_range=None, columns='*'):
+    def load_from_sql(self, table=None, where='', date_range=None, cols='*'):
+        '''
+        optional input table to load from, default is self.table 
+        optional input cols to load from sql as string, default is *
+        optional input date_range as tuple in '2014-01-01' format
+        optional input 'WHERE' query if you don't want to use a date range
+        '''
         if not table:
             table = self.tables[-1]
         if date_range:
-            where = '''WHERE posted_date > '%s' 
-                       AND posted_date <  '%s' ''' % (date_range[0], date_range[1])
-        query = 'SELECT %s FROM %s %s;' % (columns, table, where)
+            where = '''WHERE posted_date > '%s'
+                       AND posted_date <  '%s' ''' % date_range
+        query = 'SELECT %s FROM %s %s;' % (cols, table, where)
         self.df = pd.read_sql_query(query, self.sql_engine)
 
     def merge_db(self, new_tab):
         '''
-        merge multiple sql dbs into 1 db. Used by sql_pipeline function to
-        transform and export loans to sql in batches
+        merge multiple sql dbs into 1 db and add column loans_on_site which
+        calculates the number of other loans on kiva when it was posted
         '''
         conn = psycopg2.connect(dbname=self.sql['db'], user=self.sql['user'],
                                 host=self.sql['host'], password=self.sql['pw'])
         c = conn.cursor()
-        query = '''DROP TABLE IF EXISTS %s; 
-                    CREATE VIEW merged AS ''' % new_tab
+        query = '''DROP TABLE IF EXISTS %s;
+                   CREATE VIEW merged AS ''' % new_tab
         for tab in self.tables[:-1]:
             query +=    '(SELECT * FROM %s) UNION ' % tab
         query +=        '(SELECT * FROM %s); ' % self.tables[-1]
-        query += '''CREATE VIEW supply as 
-                        SELECT count(1) loans_on_site, merged.id 
+        query += '''CREATE VIEW supply as
+                        SELECT count(1) loans_on_site, merged.id
                         FROM merged JOIN (
                             SELECT posted_date, end_date FROM merged) a
-                        ON merged.posted_date > a.posted_date 
-                        AND merged.posted_date < a.end_date 
-                        GROUP BY merged.id; 
-                    CREATE TABLE %s as 
-                        SELECT * FROM supply join merged using (id);  
-                    DROP VIEW supply; 
+                        ON merged.posted_date > a.posted_date
+                        AND merged.posted_date < a.end_date
+                        GROUP BY merged.id;
+                    CREATE TABLE %s as
+                        SELECT * FROM supply join merged using (id);
+                    DROP VIEW supply;
                     DROP VIEW merged;''' % new_tab
         for tab in self.tables:
             query += ' DROP TABLE %s; ' % tab
