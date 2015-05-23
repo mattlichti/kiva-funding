@@ -35,13 +35,14 @@ class FundingModel(object):
         '''
         for feature in ['sector', 'country', 'repayment_interval', 'activity']:
             dummy_df = pd.get_dummies(df[feature]).astype(bool)
-            dummy_df.columns = [feature + ': ' + x for x in dummy_df.columns]
+            dummy_df.columns = [feature +'_' + x.replace(' ','_').lower() \
+                                for x in dummy_df.columns]
             df = pd.concat([df, dummy_df], axis=1)
         df = df.drop(['sector', 'use', 'country',
                       'activity', 'repayment_interval'], axis=1)
         return df
 
-    def fit_weighted(self, X, y, split=200, w=1, leaf=20, trees=30,
+    def fit_weighted(self, X, y, split=500, w=1, leaf=40, trees=30,
                      mf="sqrt", depth=None):
         self.model = RandomForestClassifier \
                      (min_samples_split=split, n_estimators=trees,

@@ -12,7 +12,7 @@ class Pipeline(object):
         # drop data generated after loan was posted - can't be used in model
         self.droplist = ['basket_amount', 'currency_exchange_loss_amount',
                          'delinquent', 'paid_date', 'paid_amount', 'payments',
-                         'lender_count', 'funded_date', 'funded_amount',
+                         'lender_count', 'funded_amount',
                          'translator', 'video', 'tags', 'journal_totals']
 
         self.themes = ('Underfunded Areas', 'Rural Exclusion', 'Start-Up',
@@ -50,14 +50,17 @@ class Pipeline(object):
         extracts the English description and drops the description
         in other languages
         '''
-        self.df['description'] = self.df.description.map(lambda x: x['texts']['en'] if 'en' in x['languages'] else '')
+        self.df['description'] = self.df.description.map(lambda x: \
+                x['texts']['en'] if 'en' in x['languages'] else '')
         self.df['use_text_len'] = self.df.use.map(lambda x: len(x))
         self.df['desc_text_len'] = self.df.description.map(lambda x: len(x))
 
     def transform_themes(self):
-        self.df.themes = self.df.themes.map(lambda x: x if type(x) == list else ['none'])
+        self.df.themes = self.df.themes.map(lambda x: x if type(x) == list \
+                         else ['none'])
         for theme in self.themes:
-            self.df['theme: '+str(theme)] = self.df.themes.map(lambda x: theme in x)
+            self.df['theme_'+str(theme).replace(' ','_').lower()] = \
+                self.df.themes.map(lambda x: theme in x)
         self.df.drop('themes', axis=1, inplace=True)
 
     def payment_terms(self):
@@ -98,6 +101,9 @@ class Pipeline(object):
         self.df['days_available'] = ((self.df.planned_expiration_date -
                                      self.df.posted_date)/np.timedelta64
                                      (1, 'D')).round().astype(int)
+        self.df['end_date'] = pd.to_datetime(self.df.funded_date)
+        self.df['end_date'][self.df.end_date.isnull()] = self.df.planned_expiration_date
+        self.df.drop('funded_date', axis=1, inplace=True)
 
     def filter_by_date(self):
         '''
@@ -174,12 +180,19 @@ class Pipeline(object):
                                 host=self.sql['host'], password=self.sql['pw'])
         c = conn.cursor()
         query = 'DROP TABLE IF EXISTS ' + new_tab + '; '
-        query += 'Create TABLE ' + new_tab + ' AS '
+        query += 'DROP view IF EXISTS supply; DROP view IF EXISTS merged; '
+        query += 'Create view merged AS '
         for tab in self.tables[:-1]:
             query += '(SELECT * FROM ' + tab + ') union '
-        query += '(SELECT * FROM ' + self.tables[-1] + ');'
+        query += '(SELECT * FROM ' + self.tables[-1] + '); '
+        query += '''CREATE view supply as select count(1) loans_on_site,
+                    merged.id from merged join (select id, posted_date, end_date
+                    from merged) a on merged.posted_date > a.posted_date and
+                    merged.posted_date < a.end_date group by merged.id; '''
+        query += 'CREATE table ' + new_tab + ' as SELECT * FROM supply join merged using (id);'
+        query += ' DROP view supply; DROP view merged;'
         for tab in self.tables:
-            query += ' DROP TABLE ' + tab + ';'
+            query += ' DROP TABLE ' + tab + '; '
         c.execute(query)
         conn.commit()
         conn.close()
