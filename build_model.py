@@ -31,19 +31,13 @@ class FundingModel(object):
 
     def transform_features(self, df):
         '''
-        adding dummy variables for country, sector, repayment_interval, 
-        and activity and making gender and currency_loss boolean
+        dummy variables for country, sector, repayment_interval, and activity
         '''
-        df['currency_loss'] = df.currency_loss == 'shared'
-        df['gender'] = df.gender == 'F'
-        # df['use_text_len'] = df.use.map(lambda x: len(x))
-
         for feature in ['sector', 'country', 'repayment_interval', 'activity']:
             dummy_df = pd.get_dummies(df[feature]).astype(bool)
             dummy_df.columns = [feature + ': ' + x for x in dummy_df.columns]
             df = pd.concat([df, dummy_df], axis=1)
-
-        df = df.drop(['sector', 'use', 'country', 'themes',
+        df = df.drop(['sector', 'use', 'country',
                       'activity', 'repayment_interval'], axis=1)
         return df
 
@@ -106,5 +100,5 @@ class FundingModel(object):
     def feat_imp(self):
         column_list = self.columns
         imp = self.model.feature_importances_ 
-        for feat in np.argsort(imp)[::-1][0:200]:
+        for feat in np.argsort(imp)[::-1][0:100]:
             print str(column_list[feat]) + ": " + str(round(imp[feat] * 100,2)) + '%'

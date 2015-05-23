@@ -4,6 +4,7 @@ import json
 import glob
 from sqlalchemy import create_engine
 import psycopg2
+from collections import defaultdict
 
 class Pipeline(object):
 
@@ -24,9 +25,8 @@ class Pipeline(object):
                        'Flexible Credit Study', 'none')
 
         self.min_date = '2012-01-25'  # date kiva expiration policy implemented
-        self.df =  None # pandas dataframe of loan info
-        self.sql = {'user': None, 'pw': None, 'db': None, 'host': None,
-                    'port': None}
+        self.df = pd.DataFrame()  # pandas dataframe of loan info
+        self.sql = defaultdict()  # info for connecting to postgres db
         self.tables = []  # sql tables storing the loan info
         self.sql_engine = None  # used with sqlalchemy
 
@@ -35,23 +35,22 @@ class Pipeline(object):
         Input either a list of json loan files from the kiva api or the address
         of a folder containing said files. Creates pandas df of the kiva loans
         '''
+        self.df = pd.DataFrame()
         if folder:
             files = glob.glob(folder + "/*.json")
-        self.df = []
         for file in files:
             f = open(file)
             dic = json.loads(f.read())
             df = pd.DataFrame(dic['loans'])
             df['date_fetched'] = dic['header']['date']
-            self.df.append(df)
-        self.df = pd.concat(self.df, axis=0, ignore_index=True)
+            self.df = pd.concat([self.df, df], axis=0, ignore_index=True)
 
     def get_desc(self):
         '''
         extracts the English description and drops the description
         in other languages
         '''
-        self.df['description'] = self.df.description.map(lambda x: x['texts']['en'])
+        self.df['description'] = self.df.description.map(lambda x: x['texts']['en'] if 'en' in x['languages'] else '')
         self.df['use_text_len'] = self.df.use.map(lambda x: len(x))
         self.df['desc_text_len'] = self.df.description.map(lambda x: len(x))
 
@@ -67,9 +66,12 @@ class Pipeline(object):
         repayment term (in months), and potential currency loss info
         and drops the rest of the repayment info
         '''
-        self.df['repayment_interval'] = self.df.terms.map(lambda x: x['repayment_interval'])
-        self.df['repayment_term'] = self.df.terms.map(lambda x: x['repayment_term'])
-        self.df['currency_loss'] = self.df.terms.map(lambda x: x['loss_liability']['currency_exchange'])
+        self.df['repayment_interval'] = self.df.terms.map(lambda x: \
+                                        x['repayment_interval'])
+        self.df['repayment_term'] = self.df.terms.map(lambda x: \
+                                    x['repayment_term'])
+        self.df['currency_loss'] = self.df.terms.map(lambda x: \
+                    x['loss_liability']['currency_exchange']=='shared')
         self.df.drop('terms', axis=1, inplace=True)
 
     def borrower_info(self):
@@ -78,8 +80,9 @@ class Pipeline(object):
         '''
         self.df['country'] = self.df.location.map(lambda x: x['country_code'])
         self.df['group_size'] = self.df.borrowers.map(lambda x: len(x))
-        self.df['gender'] = self.df.borrowers.map(lambda x: x[0]['gender'])
         self.df['image'] = self.df.image.map(lambda x: x['id'])
+        self.df['gender'] = self.df.borrowers.map(lambda x: x[0]['gender']=='F')
+        self.df['anonymous'] = self.df.name.map(lambda x: x == 'Anonymous')
         self.df.drop(['borrowers', 'location'], axis=1, inplace=True)
 
     def transform_dates(self):
@@ -90,7 +93,6 @@ class Pipeline(object):
         '''
         self.df['posted_date'] = pd.to_datetime(self.df.posted_date)
         self.df['date_fetched'] = pd.to_datetime(self.df.date_fetched)
-
         self.df['planned_expiration_date'] = pd.to_datetime(
             self.df.planned_expiration_date)
         self.df['days_available'] = ((self.df.planned_expiration_date -
@@ -104,7 +106,6 @@ class Pipeline(object):
         '''
         self.df = self.df[(self.df.planned_expiration_date < self.df.date_fetched)
                           & (self.df.posted_date > self.min_date)]
-        # self.df.drop('planned_expiration_date', axis=1, inplace=True)
 
     def transform_labels(self):
         '''
@@ -114,7 +115,7 @@ class Pipeline(object):
         '''
         self.df['expired'] = self.df.status == 'expired'
         self.df = self.df[self.df.status != 'refunded']
-        # self.df = self.df.drop('status', axis=1)
+        self.df.drop('status', axis=1, inplace=True)
 
     def transform_df(self):
         '''
@@ -122,22 +123,15 @@ class Pipeline(object):
         loan was posted
         '''
         self.df = self.df.drop_duplicates(['id'])
-
         self.df = self.df.set_index('id')
-
         self.df.drop(self.droplist, axis=1, inplace=True)
-        print self.df.info()
         self.transform_dates()
         self.filter_by_date()
-        print self.df.info()
         self.get_desc()
-        print self.df.info()
         self.payment_terms()
-        print self.df.info()
         self.borrower_info()
-        self.transform_labels()
         self.transform_themes()
-        print self.df.info()
+        self.transform_labels()
 
     def setup_sql(self, user, pw, db='kiva', host='localhost', port='5432',
                   tables=[]):
@@ -163,12 +157,12 @@ class Pipeline(object):
         self.tables.append(table)
 
     def load_from_sql(self, table=None, where='', date_range=None, select='*'):
-        if table:
-            self.tables = table
+        if not table:
+            table = table = self.tables[-1]
         if date_range:
             where = "WHERE posted_date > '" + date_range[0] \
                     + "' AND posted_date < '" + date_range[1] + "'"
-        query = 'SELECT '+select+' FROM '+self.tables+' '+where+' ;'
+        query = 'SELECT '+select+' FROM '+table+' '+where+' ;'
         self.df = pd.read_sql_query(query, self.sql_engine)
 
     def merge_db(self, new_tab):
@@ -189,22 +183,19 @@ class Pipeline(object):
         c.execute(query)
         conn.commit()
         conn.close()
-        self.tables = new_tab
+        self.tables = [new_tab]
 
-    def sql_pipeline(self, address, user, pw, table_name='loans', batch=30):
+    def sql_pipeline(self, address, user, pw, table_name='loans', batch=40):
         '''
         imports, transforms, and loads loan data into sql
         address is folder containing json files from kiva api
         batch is the number of json files to transform at a time
-        default 50 files = 25,000 kiva loan records at 150 MB
+        default 40 files = 20,000 kiva loan records which is about 120 MB
         '''
         filelist = glob.glob(address + "/*.json")
         self.setup_sql(user, pw)
         for n in xrange(0, (len(filelist)-1)/batch+1):
-            print n
             self.import_loans(files=filelist[n*batch:(n+1)*batch])
-            print self.df.info()
             self.transform_df()
-            print self.df.info()
             self.export_to_sql('temp_' + str(n))
         self.merge_db(table_name)
