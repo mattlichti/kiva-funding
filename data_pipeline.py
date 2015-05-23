@@ -9,8 +9,7 @@ from collections import defaultdict
 class Pipeline(object):
 
     def __init__(self):
-        # drop data generated after loan was posted - can't be used in model
-        self.droplist = ['basket_amount', 'currency_exchange_loss_amount',
+        self.drop_cols = ['basket_amount', 'currency_exchange_loss_amount',
                          'delinquent', 'paid_date', 'paid_amount', 'payments',
                          'lender_count', 'funded_amount',
                          'translator', 'video', 'tags', 'journal_totals']
@@ -130,7 +129,7 @@ class Pipeline(object):
         '''
         self.df = self.df.drop_duplicates(['id'])
         self.df = self.df.set_index('id')
-        self.df.drop(self.droplist, axis=1, inplace=True)
+        self.df.drop(self.drop_cols, axis=1, inplace=True)
         self.transform_dates()
         self.filter_by_date()
         self.get_desc()
@@ -151,7 +150,7 @@ class Pipeline(object):
         self.sql['host'] = host
         self.sql['port'] = str(port)
         self.tables = tables
-        engstr = 'postgresql://' + user+':'+pw+'@'+host + ':' + port + '/' + db
+        engstr = 'postgresql://%s:%s@%s:%s/%s' %(user, pw, host, port, db)
         self.sql_engine = create_engine(engstr)
 
     def export_to_sql(self, table):
@@ -162,13 +161,13 @@ class Pipeline(object):
         self.df.to_sql(table, self.sql_engine)
         self.tables.append(table)
 
-    def load_from_sql(self, table=None, where='', date_range=None, select='*'):
+    def load_from_sql(self, table=None, where='', date_range=None, columns='*'):
         if not table:
-            table = table = self.tables[-1]
+            table = self.tables[-1]
         if date_range:
-            where = "WHERE posted_date > '" + date_range[0] \
-                    + "' AND posted_date < '" + date_range[1] + "'"
-        query = 'SELECT '+select+' FROM '+table+' '+where+' ;'
+            where = '''WHERE posted_date > '%s' 
+                       AND posted_date <  '%s' ''' % (date_range[0], date_range[1])
+        query = 'SELECT %s FROM %s %s;' % (columns, table, where)
         self.df = pd.read_sql_query(query, self.sql_engine)
 
     def merge_db(self, new_tab):
@@ -179,20 +178,24 @@ class Pipeline(object):
         conn = psycopg2.connect(dbname=self.sql['db'], user=self.sql['user'],
                                 host=self.sql['host'], password=self.sql['pw'])
         c = conn.cursor()
-        query = 'DROP TABLE IF EXISTS ' + new_tab + '; '
-        query += 'DROP view IF EXISTS supply; DROP view IF EXISTS merged; '
-        query += 'Create view merged AS '
+        query = '''DROP TABLE IF EXISTS %s; 
+                    CREATE VIEW merged AS ''' % new_tab
         for tab in self.tables[:-1]:
-            query += '(SELECT * FROM ' + tab + ') union '
-        query += '(SELECT * FROM ' + self.tables[-1] + '); '
-        query += '''CREATE view supply as select count(1) loans_on_site,
-                    merged.id from merged join (select id, posted_date, end_date
-                    from merged) a on merged.posted_date > a.posted_date and
-                    merged.posted_date < a.end_date group by merged.id; '''
-        query += 'CREATE table ' + new_tab + ' as SELECT * FROM supply join merged using (id);'
-        query += ' DROP view supply; DROP view merged;'
+            query +=    '(SELECT * FROM %s) UNION ' % tab
+        query +=        '(SELECT * FROM %s); ' % self.tables[-1]
+        query += '''CREATE VIEW supply as 
+                        SELECT count(1) loans_on_site, merged.id 
+                        FROM merged JOIN (
+                            SELECT posted_date, end_date FROM merged) a
+                        ON merged.posted_date > a.posted_date 
+                        AND merged.posted_date < a.end_date 
+                        GROUP BY merged.id; 
+                    CREATE TABLE %s as 
+                        SELECT * FROM supply join merged using (id);  
+                    DROP VIEW supply; 
+                    DROP VIEW merged;''' % new_tab
         for tab in self.tables:
-            query += ' DROP TABLE ' + tab + '; '
+            query += ' DROP TABLE %s; ' % tab
         c.execute(query)
         conn.commit()
         conn.close()
