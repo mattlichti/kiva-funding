@@ -42,7 +42,7 @@ class FundingModel(object):
                       'activity', 'repayment_interval'], axis=1)
         return df
 
-    def fit_weighted(self, X, y, split=500, w=1, leaf=40, trees=30,
+    def fit_weighted(self, X, y, split=400, w=1.2, leaf=20, trees=40,
                      mf="sqrt", depth=None):
         self.model = RandomForestClassifier \
                      (min_samples_split=split, n_estimators=trees,

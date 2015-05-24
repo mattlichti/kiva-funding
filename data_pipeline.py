@@ -127,7 +127,6 @@ class Pipeline(object):
         '''
         self.df['expired'] = self.df.status == 'expired'
         self.df = self.df[self.df.status != 'refunded']
-        self.df.drop('status', axis=1, inplace=True)
 
     def transform_df(self):
         '''
@@ -170,7 +169,7 @@ class Pipeline(object):
 
     def load_from_sql(self, table=None, where='', date_range=None, cols='*'):
         '''
-        optional input table to load from, default is self.table 
+        optional input table to load from, default is self.table
         optional input cols to load from sql as string, default is *
         optional input date_range as tuple in '2014-01-01' format
         optional input 'WHERE' query if you don't want to use a date range
@@ -192,29 +191,32 @@ class Pipeline(object):
                                 host=self.sql['host'], password=self.sql['pw'])
         c = conn.cursor()
         query = '''DROP TABLE IF EXISTS %s;
-                   CREATE VIEW merged AS ''' % new_tab
-        for tab in self.tables[:-1]:
-            query +=    '(SELECT * FROM %s) UNION ' % tab
-        query +=        '(SELECT * FROM %s); ' % self.tables[-1]
-        query += '''CREATE VIEW supply as
-                        SELECT count(1) loans_on_site, merged.id
-                        FROM merged JOIN (
-                            SELECT posted_date, end_date FROM merged) a
-                        ON merged.posted_date > a.posted_date
-                        AND merged.posted_date < a.end_date
-                        GROUP BY merged.id;
+                   CREATE VIEW merged AS ''' % new_tab + \
+                'UNION '.join('(SELECT * FROM %s) ' % tab for
+                              tab in self.tables) + '; ' + \
+                '''CREATE VIEW supply as
+                        SELECT count(1) loans_on_site, a.id
+                        FROM (
+                            SELECT posted_date, id FROM merged
+                            WHERE posted_date > (
+                                SELECT min(posted_date) + INTERVAL '30 days'
+                                FROM merged) 
+                            ) a
+                        JOIN (SELECT posted_date, end_date FROM merged) b
+                        ON a.posted_date > b.posted_date
+                        AND a.posted_date < b.end_date
+                        GROUP BY a.id;
                     CREATE TABLE %s as
-                        SELECT * FROM supply join merged using (id);
+                        SELECT * FROM merged LEFT JOIN supply using (id);
                     DROP VIEW supply;
-                    DROP VIEW merged;''' % new_tab
-        for tab in self.tables:
-            query += ' DROP TABLE %s; ' % tab
+                    DROP VIEW merged;''' % new_tab + \
+                ''.join(' DROP TABLE %s; ' % tab for tab in self.tables)
         c.execute(query)
         conn.commit()
         conn.close()
         self.tables = [new_tab]
 
-    def sql_pipeline(self, address, user, pw, table_name='loans', batch=40):
+    def sql_pipeline(self, address, user, pw, table_name='loans', batch=20):
         '''
         imports, transforms, and loads loan data into sql
         address is folder containing json files from kiva api
