@@ -12,8 +12,8 @@ class Pipeline(object):
     def __init__(self):
         self.drop_cols = ['basket_amount', 'currency_exchange_loss_amount',
                           'delinquent', 'paid_date', 'paid_amount', 'payments',
-                          'lender_count', 'funded_amount',
-                          'translator', 'video', 'tags', 'journal_totals',
+                          'lender_count', 'funded_amount', 'translator',
+                          'video', 'tags', 'journal_totals', 'terms',
                           'funded_date', 'borrowers', 'location', 'themes']
 
         self.themes = ('Underfunded Areas', 'Rural Exclusion', 'Start-Up',
@@ -30,6 +30,7 @@ class Pipeline(object):
         self.sql = defaultdict()  # info for connecting to postgres db
         self.tables = []  # sql tables storing the loan info
         self.sql_engine = None  # used with sqlalchemy
+        self.query = ''
 
     def import_loans(self, files=None, folder=None):
         '''
@@ -39,6 +40,7 @@ class Pipeline(object):
         self.df = pd.DataFrame()
         if folder:
             files = glob.glob(folder + "/*.json")
+        print len(files)
         for file in files:
             f = open(file)
             dic = json.loads(f.read())
@@ -79,7 +81,6 @@ class Pipeline(object):
             lambda x: x['repayment_term'])
         self.df['currency_loss'] = self.df.terms.map(
             lambda x: x['loss_liability']['currency_exchange'] == 'shared')
-        self.df.drop('terms', axis=1, inplace=True)
 
     def borrower_info(self):
         '''
@@ -159,11 +160,27 @@ class Pipeline(object):
         engstr = 'postgresql://%s:%s@%s:%s/%s' % (user, pw, host, port, db)
         self.sql_engine = create_engine(engstr)
 
+    def run_query(self):
+        '''
+        Executes self.query. Used by export_to_sql, merge_db, competing_loans
+        '''
+        print self.query
+        conn = psycopg2.connect(dbname=self.sql['db'], user=self.sql['user'],
+                                host=self.sql['host'], password=self.sql['pw'])
+        c = conn.cursor()
+        c.execute(self.query)
+        conn.commit()
+        conn.close()
+        self.query = ''
+
+
     def export_to_sql(self, table):
         '''
         input name of table to insert the pandas dataframe self.df
         using the sql db, user, and pw input by the setup sql function
         '''
+        self.query += 'DROP TABLE if exists %s' % table
+        self.run_query()
         self.df.to_sql(table, self.sql_engine)
         self.tables.append(table)
 
@@ -182,46 +199,51 @@ class Pipeline(object):
         query = 'SELECT %s FROM %s %s;' % (cols, table, where)
         self.df = pd.read_sql_query(query, self.sql_engine)
 
-    def merge_db(self, new_tab='loans'):
+    def merge_db(self):
         '''
-        merge multiple sql dbs into 1 db and add column loans_on_site which
-        calculates the number of other loans on kiva when it was posted
+        merge multiple sql dbs into 1 db
         '''
-        conn = psycopg2.connect(dbname=self.sql['db'], user=self.sql['user'],
-                                host=self.sql['host'], password=self.sql['pw'])
-        c = conn.cursor()
-        query = '''DROP TABLE IF EXISTS %s;
-                   CREATE TABLE merged AS ''' % new_tab + \
-                'UNION '.join('(SELECT * FROM %s) ' % tab for
-                              tab in self.tables) + '; ' + \
-                ''.join(' DROP TABLE %s; ' % tab for tab in self.tables) + \
-                ''' CREATE VIEW supply as
-                        SELECT count(1) loans_on_site, a.id
-                        FROM (
-                            SELECT posted_date, id FROM merged
-                            WHERE posted_date > (
-                                SELECT min(posted_date) + INTERVAL '30 days'
-                                FROM merged)
-                            ) a
-                        JOIN (SELECT posted_date, end_date FROM merged) b
-                        ON a.posted_date > b.posted_date
-                        AND a.posted_date < b.end_date
-                        GROUP BY a.id;
-                    CREATE TABLE %s as
-                        SELECT * FROM merged LEFT JOIN supply using (id);
-                    DROP VIEW supply;
-                    DROP TABLE merged;''' % new_tab
-        c.execute(query)
-        conn.commit()
-        conn.close()
-        self.tables = [new_tab]
+        self.query += '''DROP TABLE IF EXISTS merged;
+            CREATE TABLE merged AS ''' + \
+            'UNION '.join('(SELECT * FROM %s) ' % tab for
+                          tab in self.tables) + '; ' + \
+            ''.join(' DROP TABLE %s; ' % tab for tab in self.tables)
+        self.run_query()
+        self.tables = ['merged']
 
-    def sql_pipeline(self, address, user, pw, table_name='loans', batch=40):
+    def competing_loans(self, new_table='loans'):
+        '''
+        add column competing_loans which calculates total number of loans
+        fundraising on kiva.org when each loan was posted
+        '''
+        self.query += '''DROP TABLE IF EXISTS %s;
+            CREATE VIEW supply as
+            SELECT count(1) competing_loans, a.posted_date
+            FROM
+                (SELECT DISTINCT posted_date FROM merged
+                WHERE posted_date >
+                    (SELECT min(posted_date) + INTERVAL '30 days'
+                    FROM merged)) a
+            JOIN
+                (SELECT posted_date, end_date FROM merged) b
+            ON a.posted_date > b.posted_date AND a.posted_date < b.end_date
+            GROUP BY a.posted_date;
+
+            CREATE TABLE %s as
+            SELECT * FROM merged LEFT JOIN supply using (posted_date);
+            DROP VIEW supply;
+            DROP TABLE merged; ''' % (new_table, new_table)
+
+        self.run_query()
+        self.tables = [new_table]
+
+    def sql_pipeline(self, address, user, pw, batch=60, competing_loans=True,
+                     table_name='loans'):
         '''
         imports, transforms, and loads loan data into sql.
         address is folder containing json files from kiva api.
         batch is the number of json files to transform at a time.
-        default 40 files = 20,000 kiva loan records which is about 120 MB.
+        default 60 files = 30,000 kiva loan records which is about 128 MB.
         '''
         filelist = glob.glob(address + "/*.json")
         self.setup_sql(user, pw)
@@ -230,4 +252,6 @@ class Pipeline(object):
             self.transform_df()
             if self.df.shape[0]:
                 self.export_to_sql('temp_' + str(n))
-        self.merge_db(table_name)
+        self.merge_db()
+        if competing_loans:
+            self.competing_loans(table_name)
