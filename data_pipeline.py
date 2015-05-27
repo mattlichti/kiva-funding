@@ -27,9 +27,9 @@ class Pipeline(object):
                        'Flexible Credit Study', 'none')
 
         self.min_date = '2012-01-25'  # date kiva expiration policy implemented
-        self.df = pd.DataFrame()  # pandas dataframe of loan info
+        self.df = pd.DataFrame()  # pandas dataframe of loan data
         self.sql = defaultdict()  # info for connecting to postgres db
-        self.tables = []  # sql tables storing the loan info
+        self.tables = []  # sql tables storing the loan data
         self.sql_engine = None  # used with sqlalchemy
         self.query = ''
 
@@ -97,8 +97,8 @@ class Pipeline(object):
     def payment_terms(self):
         '''
         Extracts repayment interval (monthly, irregularly, or lump sum),
-        repayment term (in months), and potential currency loss info
-        and drops the rest of the repayment info
+        repayment term (in months), and potential currency loss data
+        and drops the rest of the repayment data
         '''
         self.df['repayment_interval'] = self.df.terms.map(
             lambda x: x['repayment_interval'])
@@ -122,7 +122,7 @@ class Pipeline(object):
     def get_labels(self):
         '''
         labels loans as either expired or funded. Drops the current status
-        info and drops the tiny number of loans which were refunded
+        data and drops the tiny number of loans which were refunded
         (withdrawn from kiva without being funded or expiring)
         '''
         self.df['expired'] = self.df.status == 'expired'
@@ -244,21 +244,21 @@ class Pipeline(object):
         can be set to False to dramatically reduce processing time.
         '''
         filelist = glob.glob(address + "/*.json")
-        self.setup_sql(user, pw)
-        for n in xrange(0, (len(filelist)-1)/batch+1):
-            self.import_loans(files=filelist[n*batch:(n+1)*batch])
+        self.setup_sql(user, pw, db=db, host=host, port=port)
+        for n in xrange(0, (len(filelist)-1)/int(batch)+1):
+            self.import_loans(files=filelist[n*int(batch):(n+1)*int(batch)])
             self.transform_df()
             if self.df.shape[0]:
                 self.export_to_sql('temp_' + str(n))
         self.merge_db()
-        if competing_loans:
+        if bool(competing_loans):
             self.competing_loans(table_name)
 
 if __name__ == '__main__':
     '''
-    must pass address of the folder where the unzipped kiva loan json files
-    are located, and postgres username and password.
-    Can optionally pass the name of a postgres db, host, and port.
+    Input address of the folder where the unzipped kiva loan json files
+    are located and postgres username and password. Optional: input postgres
+    db namek, host, port, batch size, competing_loans boolean, table name
     ex: python data_pipeline.py folder username password
     '''
     pipe = Pipeline()
