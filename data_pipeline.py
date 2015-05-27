@@ -5,6 +5,7 @@ import glob
 from sqlalchemy import create_engine
 import psycopg2
 from collections import defaultdict
+import sys
 
 
 class Pipeline(object):
@@ -40,7 +41,6 @@ class Pipeline(object):
         self.df = pd.DataFrame()
         if folder:
             files = glob.glob(folder + "/*.json")
-        print len(files)
         for file in files:
             f = open(file)
             dic = json.loads(f.read())
@@ -48,7 +48,32 @@ class Pipeline(object):
             df['date_fetched'] = dic['header']['date']
             self.df = pd.concat([self.df, df], axis=0, ignore_index=True)
 
-    def get_desc(self):
+    def transform_dates(self):
+        '''
+        Converts dates to datetime objects.
+        Drops loans posted before expiration policy implemented '2012-01-25'.
+        Drops loans with planned expiration date after loan fetched from api.
+        Calculates the number of days loan is available until expiration.
+        Calculates the date when funding ended (expired or fully funded).
+        Calculates number of days on site before loan was funded or expired.
+        '''
+        self.df['posted_date'] = pd.to_datetime(self.df.posted_date)
+        self.df['date_fetched'] = pd.to_datetime(self.df.date_fetched)
+        self.df['planned_expiration_date'] = pd.to_datetime(
+            self.df.planned_expiration_date)
+        self.df = self.df[(self.df.planned_expiration_date <
+                           self.df.date_fetched) &
+                          (self.df.posted_date > self.min_date)]
+        self.df['days_available'] = ((self.df.planned_expiration_date -
+                                     self.df.posted_date)/np.timedelta64
+                                     (1, 'D')).round().astype(int)
+        self.df['end_date'] = pd.to_datetime(self.df.funded_date)
+        self.df['end_date'][self.df.end_date.isnull()] = \
+            self.df.planned_expiration_date
+        self.df['days_on_kiva'] = ((self.df.end_date - self.df.posted_date) /
+                                   np.timedelta64(1, 'D'))
+
+    def get_text(self):
         '''
         extracts the English description and drops the description
         in other languages
@@ -58,7 +83,7 @@ class Pipeline(object):
         self.df['use_text_len'] = self.df.use.map(lambda x: len(x))
         self.df['desc_text_len'] = self.df.description.map(lambda x: len(x))
 
-    def transform_themes(self):
+    def get_themes(self):
         '''
         Themes are loan attributes that lenders can use to search for loans
         Loans can have one or more themes.
@@ -94,35 +119,7 @@ class Pipeline(object):
             lambda x: x[0]['gender'] == 'F')
         self.df['anonymous'] = self.df.name.map(lambda x: x == 'Anonymous')
 
-    def transform_dates(self):
-        '''
-        Converts dates to datetime objects.
-        Drops loans posted before expiration policy implemented '2012-01-25'.
-        Drops loans with planned expiration date after loan fetched from api.
-        Calculates the number of days loan is available until expiration.
-        Calculates the date when funding ended (expired or fully funded).
-        Calculates number of days on site before loan was funded or expired.
-        '''
-        self.df['posted_date'] = pd.to_datetime(self.df.posted_date)
-        self.df['date_fetched'] = pd.to_datetime(self.df.date_fetched)
-        self.df['planned_expiration_date'] = pd.to_datetime(
-            self.df.planned_expiration_date)
-
-        self.df = self.df[(self.df.planned_expiration_date <
-                           self.df.date_fetched) &
-                          (self.df.posted_date > self.min_date)]
-
-        self.df['days_available'] = ((self.df.planned_expiration_date -
-                                     self.df.posted_date)/np.timedelta64
-                                     (1, 'D')).round().astype(int)
-
-        self.df['end_date'] = pd.to_datetime(self.df.funded_date)
-        self.df['end_date'][self.df.end_date.isnull()] = \
-            self.df.planned_expiration_date
-        self.df['days_on_kiva'] = ((self.df.end_date - self.df.posted_date) /
-                                   np.timedelta64(1, 'D'))
-
-    def transform_labels(self):
+    def get_labels(self):
         '''
         labels loans as either expired or funded. Drops the current status
         info and drops the tiny number of loans which were refunded
@@ -139,11 +136,11 @@ class Pipeline(object):
         self.df = self.df.drop_duplicates(['id'])
         self.df = self.df.set_index('id')
         self.transform_dates()
-        self.get_desc()
+        self.get_text()
         self.payment_terms()
         self.borrower_info()
-        self.transform_themes()
-        self.transform_labels()
+        self.get_themes()
+        self.get_labels()
         self.df.drop(self.drop_cols, axis=1, inplace=True)
 
     def setup_sql(self, user, pw, db='kiva', host='localhost', port='5432'):
@@ -164,7 +161,6 @@ class Pipeline(object):
         '''
         Executes self.query. Used by export_to_sql, merge_db, competing_loans
         '''
-        print self.query
         conn = psycopg2.connect(dbname=self.sql['db'], user=self.sql['user'],
                                 host=self.sql['host'], password=self.sql['pw'])
         c = conn.cursor()
@@ -172,7 +168,6 @@ class Pipeline(object):
         conn.commit()
         conn.close()
         self.query = ''
-
 
     def export_to_sql(self, table):
         '''
@@ -201,7 +196,7 @@ class Pipeline(object):
 
     def merge_db(self):
         '''
-        merge multiple sql dbs into 1 db
+        merge multiple sql tables into 1 table
         '''
         self.query += '''DROP TABLE IF EXISTS merged;
             CREATE TABLE merged AS ''' + \
@@ -213,8 +208,8 @@ class Pipeline(object):
 
     def competing_loans(self, new_table='loans'):
         '''
-        add column competing_loans which calculates total number of loans
-        fundraising on kiva.org when each loan was posted
+        Add sql column competing_loans which calculates the number of loans
+        fundraising on kiva.org when each loan was posted.
         '''
         self.query += '''DROP TABLE IF EXISTS %s;
             CREATE VIEW supply as
@@ -237,13 +232,16 @@ class Pipeline(object):
         self.run_query()
         self.tables = [new_table]
 
-    def sql_pipeline(self, address, user, pw, batch=60, competing_loans=True,
+    def sql_pipeline(self, address, user, pw, db='kiva', host='localhost',
+                     port='5432', batch=60, competing_loans=True,
                      table_name='loans'):
         '''
-        imports, transforms, and loads loan data into sql.
-        address is folder containing json files from kiva api.
+        Imports, transforms, and loads loan data into sql.
+        Address is folder containing json files from kiva api.
         batch is the number of json files to transform at a time.
-        default 60 files = 30,000 kiva loan records which is about 128 MB.
+        default 60 files = 30,000 kiva loan records which is about 180 MB.
+        Calculating competing_loans is by far the most time consuming step -
+        can be set to False to dramatically reduce processing time.
         '''
         filelist = glob.glob(address + "/*.json")
         self.setup_sql(user, pw)
@@ -255,3 +253,13 @@ class Pipeline(object):
         self.merge_db()
         if competing_loans:
             self.competing_loans(table_name)
+
+if __name__ == '__main__':
+    '''
+    must pass address of the folder where the unzipped kiva loan json files
+    are located, and postgres username and password.
+    Can optionally pass the name of a postgres db, host, and port.
+    ex: python data_pipeline.py folder username password
+    '''
+    pipe = Pipeline()
+    pipe.sql_pipeline(*sys.argv[1:])

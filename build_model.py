@@ -8,13 +8,14 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk import word_tokenize
 from nltk.stem.wordnet import WordNetLemmatizer as lemmatizer
 
+
 class FundingModel(object):
 
     def __init__(self):
-        self.vectorizer = None #  vectorizer object
-        self.columns = [] #  list of columns in fit model
-        self.tf_col = [] #  list of term freq columns in fit model 
-        self.model = None #  maybe put the model here
+        self.vectorizer = None  # vectorizer object
+        self.columns = []  # list of columns in fit model
+        self.tf_col = []  # list of term freq columns in fit model
+        self.model = None  # maybe put the model here
 
     def tokenize(self, txt, stemmer=lemmatizer()):
         return [stemmer.lemmatize(word) for word in word_tokenize(txt)
@@ -22,7 +23,7 @@ class FundingModel(object):
 
     def transform_text(self, df):
         self.vectorizer = TfidfVectorizer(stop_words='english', tokenizer=
-                                          self.tokenize, max_features=250, 
+                                          self.tokenize, max_features=250,
                                           use_idf=False)
         vect = self.vectorizer.fit_transform(df.use.values)
         self.tf_col = ['use: ' + str(x) for x in self.vectorizer.get_feature_names()]
@@ -35,7 +36,7 @@ class FundingModel(object):
         '''
         for feature in ['sector', 'country', 'repayment_interval', 'activity']:
             dummy_df = pd.get_dummies(df[feature]).astype(bool)
-            dummy_df.columns = [feature +'_' + x.replace(' ','_').lower() \
+            dummy_df.columns = [feature + '_' + x.replace(' ', '_').lower()
                                 for x in dummy_df.columns]
             df = pd.concat([df, dummy_df], axis=1)
         df = df.drop(['sector', 'use', 'country',
@@ -67,7 +68,7 @@ class FundingModel(object):
         df = self.transform_training(df)
         self.fit(df)
 
-    def predict (self, df):
+    def predict(self, df):
         vect = self.vectorizer.transform(df.use.values)
         uses = pd.DataFrame(vect.toarray(), columns=self.tf_col)
         df = self.transform_features(df)
@@ -82,9 +83,10 @@ class FundingModel(object):
         ypred = self.model.predict(X)
         return ypred
 
-    def confusion(self, ypred, y_test):
+    def confusion_matrix(self, ypred, y_test):
         '''
-        outputs confusion matrix
+        outputs confusion matrix - should output this as a string rather
+        than series of print statements
         '''
         true_pos = np.logical_and(y_test, ypred).mean()
         false_pos = np.logical_and(~y_test, ypred).mean()
@@ -92,14 +94,21 @@ class FundingModel(object):
         false_neg = np.logical_and(y_test, ~ypred).mean()
         recall = true_pos / (true_pos + false_neg)
         precision = true_pos / (true_pos + false_pos)
-        print 'actl pos:', round(y_test.mean(), 4), 'pred pos:', round(ypred.mean(), 4)
-        print 'true pos:', round(true_pos, 4), 'false pos:', round(false_pos, 4)
-        print 'true neg:', round(true_neg, 4), 'false neg:', round(false_neg, 4)
+        print 'actl pos:', round(y_test.mean(), 4), 'pred pos:', \
+            round(ypred.mean(), 4)
+        print 'true pos:', round(true_pos, 4), 'false pos:', \
+            round(false_pos, 4)
+        print 'true neg:', round(true_neg, 4), 'false neg:', \
+            round(false_neg, 4)
         print 'recall:', round(recall, 4), 'precision:', round(precision, 4)
         print ''
 
     def feat_imp(self):
+        '''
+        need to convert this to format as string with embedded variables and output 
+        string rather than print so that it can be printed to a file
+        '''
         column_list = self.columns
-        imp = self.model.feature_importances_ 
+        imp = self.model.feature_importances_
         for feat in np.argsort(imp)[::-1][0:100]:
             print str(column_list[feat]) + ": " + str(round(imp[feat] * 100,2)) + '%'
