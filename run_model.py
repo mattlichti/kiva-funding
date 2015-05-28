@@ -5,8 +5,8 @@ import sys
 
 
 def run(user, pw, db='kiva', table='loans', host='localhost', port='5432',
-        train_dates=('2014-03-01', '2014-12-01'),
-        test_dates=('2015-01-01', '2015-04-01')):
+        train_dates=('2014-01-01', '2014-12-01'),
+        test_dates=('2015-01-01', '2015-05-01')):
     '''
     Loads kiva loan data from sql table, trains model on loans within
     train_dates, tests_model on loans from within test_dates,
