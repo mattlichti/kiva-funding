@@ -51,6 +51,12 @@ class FundingModel(object):
         return df
 
     def fit_weighted_rf(self, X, y, split=400, weight=1, leaf=20, trees=40):
+        '''
+        Random forest model where the expired loans are given much higher
+        weight than the loans that were successfully funded to make up for
+        the very unbalanced classes. min_samples for each split and leaf
+        are set to reduce overfitting.
+        '''
         self.model = RandomForestClassifier(
             min_samples_split=split, n_estimators=trees,
             min_samples_leaf=leaf, max_features='sqrt', max_depth=None)
@@ -59,7 +65,7 @@ class FundingModel(object):
 
     def fit(self, df):
         '''
-
+        transforms text and features and fit random forest model
         '''
         df = self.transform_text(df)
         df = self.transform_features(df)

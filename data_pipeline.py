@@ -24,7 +24,7 @@ class Pipeline(object):
                        'Water and Sanitation', 'Fair Trade', 'Kiva City LA',
                        'Innovative Loans', 'Growing Businesses',
                        'Disaster recovery', 'Kiva City Detroit',
-                       'Flexible Credit Study', 'none')
+                       'Flexible Credit Study', 'none')  # loan attributes
 
         self.min_date = '2012-01-25'  # date kiva expiration policy implemented
         self.df = pd.DataFrame()  # pandas dataframe of loan data
@@ -86,7 +86,7 @@ class Pipeline(object):
     def get_themes(self):
         '''
         Themes are loan attributes that lenders can use to search for loans
-        Loans can have one or more themes.
+        Converts list of themes to df columns
         '''
         self.df.themes = self.df.themes.map(
             lambda x: x if type(x) == list else ['none'])

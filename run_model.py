@@ -19,10 +19,12 @@ def run(user, pw, db='kiva', table='loans', host='localhost', port='5432',
               anonymous, competing_loans, days_available, expired, '''
     cols += ", ".join('"theme_'+theme.replace(' ', '_').lower()+'"'
                       for theme in pipe.themes)
+
     pipe.setup_sql(user, pw, db=db, host=host, port=port)
     pipe.load_from_sql(cols=cols, date_range=train_dates, table=table)
     mod = build_model.FundingModel()
     mod.fit(pipe.df)
+
     pipe.load_from_sql(cols=cols, date_range=test_dates, table=table)
     y = pipe.df.pop('expired').values
     ypred = mod.predict(pipe.df)
@@ -33,7 +35,7 @@ def run(user, pw, db='kiva', table='loans', host='localhost', port='5432',
 if __name__ == '__main__':
     '''
     Input postgres username and password. Optional: input postgres
-    db namek, host, port, batch size, competing_loans boolean, table name
-    ex: python run_Kmodel.py username password
+    db name, host, port, batch size, competing_loans boolean, table name
+    ex: python run_model.py username password
     '''
     run(*sys.argv[1:])
