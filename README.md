@@ -22,7 +22,7 @@ In addition to the features that impact demand for particular loans, the supply 
 
 ![Kiva Loan](https://github.com/mattlichti/Fundraising-Success/blob/master/plots/competing_loans.png)
 
-When there are few loans on the site, almost all of the loans get funded. When there is more competition, lenders have more options each loan has a higher chance of expiring. In the future, it might be useful to look at the total value of the loans currently fundraising and how far along they are in their fundraising, not just the number of loans. It might also be useful to look at attributes of those loans like if the loans are similar to the loan being analyzed, like if there are a lot of other loans from the same country or same economic sector.
+When there are few loans on the site, almost all of the loans get funded. When there is more competition, lenders have more options each loan has a higher chance of expiring. In the future, it might be useful to look at the total value of the loans currently fundraising and how far along they are in their fundraising, not just the number of loans. It might also be useful to look at attributes of those loans. For example, if there are a lot of loans currently fundraising from the same country or economic sector as the loan being posted, it may lower the chance of that loan getting funded.
 
 ##Modeling:
 
