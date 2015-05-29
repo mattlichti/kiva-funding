@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import data_pipeline
 import build_model
+import run_model
 import seaborn
 import numpy as np
 import sys
@@ -19,6 +20,26 @@ class Plots(object):
         self.table = table
         self.pipe = data_pipeline.Pipeline()
         self.pipe.setup_sql(user, pw, db=db, host=host, port=port)
+
+    def feature_importance(self, n=20):
+        '''
+        plots the top n most important features
+        '''
+        cols = run_model.get_columns(self.pipe)
+        self.pipe.load_from_sql(cols=cols, table=self.table,
+                                date_range=('2014-05-01', '2015-05-01'))
+        mod = build_model.FundingModel()
+        mod.fit(self.pipe.df)
+        features, vals = mod.feat_imp(string=False, n=n)
+        fig, ax = plt.subplots()
+        index = np.arange(len(features))
+        plt.bar(index, vals, color='b')
+        plt.xticks(index + .5, features, rotation='vertical')
+        plt.xlabel('Feature')
+        plt.ylabel('Importance in Random Forest Model')
+        plt.title('Top %s Most Important Features' % n)
+        plt.tight_layout()
+        plt.show()
 
     def competing_loans(self):
         '''
@@ -124,10 +145,12 @@ class Plots(object):
 
 if __name__ == '__main__':
     '''
+    Plot feature importance, competing loans, and exp rate by month
     Input postgres username and password. Optional: input postgres
     db name, table name, host, port, date range
     ex: python rplots.py username password
     '''
     p = Plots(*sys.argv[1:])
+    p.feature_importance()
     p.competing_loans()
     p.month()

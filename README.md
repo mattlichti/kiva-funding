@@ -1,29 +1,19 @@
 #How to get Loans Funded on Kiva
 
-####Matt Lichti
+##Motivation: 
 
-##Summary: 
+This project is an analysis of what features make loans on Kiva.org more successfull. Over 880,000 microfinance loans totaling $712 million have been funded on Kiva since it was founded in 2005. These loans were originally made by 296 different microfinance organizations in 85 countries in the developing world. These microfinance organizations then post some of their loans on kiva.org to raise money from the more than 2 million kiva lenders to backfill the loans. Since January 2012, kiva normally has had a 30 day expiration policy. If the loan is not fully funded in that time, the lenders are refunded and the microfinance organization does not receive any money for the loan. This is similar to the funding model used on kickstarter where the project only receives money if it is fully funded. Because of the risk of loan expiration, it is important for the microfinance organizations to understand the characterics that make loans more likely to get funded. The analysis could also useful for kiva.org to increase the total number of loans getting funded would help more struggling entreprenours around the globe get the loans they need to build their businesses.
 
-My project is an analysis of what makes a campaign successful on Kiva.org. Over 840,000 microfinance loans have been funded on Kiva since it was founded in 2005. The loans on kiva.org are available for funding on the site for 30 days. If they are not funded in that time, the loan expires and the lenders are refunded their money. Because of this, it is important for the microfinance organizations to understand the preferences of kiva lenders to increase the chances that the loans they post get funded. The most important results are a determination of which features positively and negatively impact the chance of getting funded. 
+##Data Pipeline:
 
-##Data:
+Kiva makes their loan data available through their [api](http://build.kiva.org/). They also periodically make downloadable snapshots of the data which is much more convenient for analyzing hundreds of thousands of loans. I most recently used the May 18 json snapshot for this analysis. The loan data is in a 1 GB zip file that is 5 GB when unzipped. The pipeline.py file is used for processing the raw kiva loan data. It extracts the relevent data, engineers the important features, and then stores it in a postgres SQL database. To run the pipeline, unzip the loans folder containing around 1800 json files that each have the data from 500 loans. Then setup a postgres database and run pipeline.py specifying the folder location, postgres username, and password. 
 
-Kiva has data on 844,000 loans at http://build.kiva.org/. They archive the public data periodically in a a set of over 1600 json files with 500 loans each at http://s3.kiva.org/snapshots/kiva_ds_json.zip which is 5 GB unzipped.
+![Kiva Loan](https://github.com/mattlichti/Fundraising-Success/blob/master/img/feature_engineering.jpg)
 
-##Feature Engineering 
+The important features include the loan amount, repayment term, gender, group size (loans can be for 1 person or a group of people), whether the borrower is liable for losses due to currency fluctuations, whether the borrower has their name and photo on the website rather than remain anonymous. Categorical variables include country (currently 84 countries), sector (15 categories like transportation or agriculture), and a narrower activity category (150 categories like "rickshaw" or "cattle"). The loans also have various searchable themes like "green", "fair trade", "conflict zones", etc. I used TF-IDF on the one sentence description of how the loan will be used to engineer features out of the most commonly used terms. The length of this text as well as the length of the larger description text were also useful features.
 
-![Kiva Loan](https://github.com/mattlichti/Fundraising-Success/blob/master/img/features.jpg)
+build_model.py is used to train and test the model. The model converts the categorical features into around 250 dummy variables. It tokenizes and lemmatizes the text describing the loan use and creates a vector of the 250 most common terms after the stop words are removed. I used a weighted random forest which I had to tune quite a bit to avoid overfitting. I also tried logistic regression and SVM but they did not perform quite as well. My model can output a confusion matrix and a list of feature importances, which I use to make reccomendations on how microfinance organizations can imrove their odds of getting their loans funded.
 
-The features include country (categorical, 84 countries), sector (15 categories like transportation,  agriculture), loan Amount, whether it is an individual or group loan, gender, and the specific activity (150 categories like "rickshaw" or "cattle") . I also used TFIDF and a lemmatizer to vectorize the one sentence description of how the loan will be used. The loans also have various searchable attributes like "green", "fair trade", "conflict zones", etc.
-
-##Process:
-
-The file data_pipeline.py is used to read in the 1600 json files and convert them into pandas dataframes. A lot of the useful data is several dictionaries deep in the json file and needs a lot of preprocessing to extract the useful information. The cleaned data can then be saved as json or a pickle. 
-
-The filter.py file is used to choose a date ranges to build and test the models. The timeframe for my model was chosen based on loan expiration times. I determined that kiva changed their expiration policies during the Christmas 2013 and Christmas 2014 seasons, making it hard to compare expiration rates during that timefram to the rest of the year. I used the Jan 1 through Nov 17 2014 timefram to build my model because expiration policies were consistent during the timeframe.
-
-The most important file is model.py which is used to train and test the model. The model converts the categorical features into around 250 dummy variables. It tokenizes and lemmatizes the text describing the loan use and creates a vector of the 250 most common terms after the stop words are removed. I used a weighted random forest which I had to tune quite a bit to avoid overfitting. I also tried logistic regression and SVM but they did not perform quite as well. My model can output a confusion matrix and a list of feature importances, which I use to make reccomendations on how microfinance organizations can imrove their odds of getting their loans funded.
-
-The plots.py file is used to make univariate plots of some of the important features. Plots of the expiration rate by gender, repayment schedule, and month are in the plot folder.
+The plots.py file is used to make plots of some of the important features. Plots of the most important features in the random fores model and the random expiration rate by gender, repayment schedule, and month are in the plot folder.
 
 presentation_slides.pdf is the slides I used for a 3 minute presentation on my project and results.

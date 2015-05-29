@@ -103,15 +103,18 @@ class FundingModel(object):
         precis = round(tp / (tp + fp), 3)
 
         return '       Predict high risk  Predict low risk \n' + \
-               'Expired: %s%%               %s%% \n' % (tp*100, fn*100) + \
-               'Funded: %s%%               %s%% \n\n' % (fp*100, tn*100) + \
+               'Expired:   %s%%               %s%% \n' % (tp*100, fn*100) + \
+               'Funded:   %s%%               %s%% \n\n' % (fp*100, tn*100) + \
                'Recall: %s%%   Precision: %s%%' % (recall*100, precis*100)
 
-    def feat_imp(self):
+    def feat_imp(self, n=100, string=True):
         '''
-        Returns list of most important features as a string
+        Returns n most important features as a string or as 2 lists
         '''
-        column_list = self.columns
         imp = self.model.feature_importances_
-        return ''.join('%s: %s%%\n' % (column_list[feat], round(
-            imp[feat] * 100, 1)) for feat in np.argsort(imp)[::-1][0:100])
+        if string:
+            return ''.join('%s: %s%%\n' % (self.columns[feat], round(
+                imp[feat] * 100, 1)) for feat in np.argsort(imp)[-1:-(n+1):-1])
+        else:
+            return self.columns[np.argsort(imp)[-1:-(n+1):-1]], \
+                sorted(imp)[-1:-(n+1):-1]
