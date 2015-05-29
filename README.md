@@ -20,7 +20,7 @@ The most important part of the process is feature engineering. The features incl
 
 In addition to the features that impact demand for particular loans, the supply of loans on the site can impact the chances of each loan getting funded. I used SQL to calculate the number of other loans on kiva at the time each loan was posted by comparing the timestamp of when each loan was posted to the timestamps for when other loans were posted and funded or expired.
 
-![Kiva Loan](https://github.com/mattlichti/Fundraising-Success/blob/master/plots/competing loans.png)
+![Kiva Loan](https://github.com/mattlichti/Fundraising-Success/blob/master/plots/competing_loans.png)
 
 When there are few loans on the site, almost all of the loans get funded. When there is more competition, lenders have more options each loan has a higher chance of expiring. In the future, it might be useful to look at the total value of the loans currently fundraising and how far along they are in their fundraising, not just the number of loans. It might also be useful to look at attributes of those loans like if the loans are similar to the loan being analyzed, like if there are a lot of other loans from the same country or same economic sector.
 
