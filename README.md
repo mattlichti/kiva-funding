@@ -30,7 +30,7 @@ build_model.py is used to train the model, predict which loans have a higher ris
 
 The model converts the categorical features into boolean dummy variables, and tokenizes, lemmatizes, and performs TF-IDF on the text. I used a random forest model which I had to tune quite a bit to avoid overfitting. The classes were unbalanced with a much higher number of funded loans than expired loans, so I heavily weighted the expired loans in order to increase recall of expired loans at the expense of precision. I also tried logistic regression and SVM but they have not performed quite as well. The model can output a confusion matrix and a list of feature importances which could be used as recommendations on how to improve their odds of getting their loans funded. 
 
-The plots.py file is used to make plots of some of the important features.
+The plots.py file is used to make plots of some of the feture importances in the random forest model, as well as plot the expiration rate based on a variety of features and the expiration rate over time.
 
 ##Results:
 
