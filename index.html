@@ -30,21 +30,24 @@
 <p>Since January 2012, kiva has usually had a 30 day expiration policy. If a loan is not fully funded in that time, the lenders are refunded and the microfinance organization does not receive any money. This is similar to the funding model used on kickstarter where projects do not receive any money unless they are fully funded. Because of the risk of loan expiration, it is important for the microfinance organizations to understand the characteristics that make loans more likely to get funded. The analysis could also help kiva.org increase the total number of loans getting funded, which would help more struggling entrepreneurs around the globe get the capital they need to build their businesses.</p>
 
 <h3>
-<a id="data-pipeline" class="anchor" href="#data-pipeline" aria-hidden="true"><span class="octicon octicon-link"></span></a>Data Pipeline:</h3>
+<a id="data" class="anchor" href="#data" aria-hidden="true"><span class="octicon octicon-link"></span></a>Data:</h3>
 
 <p>Kiva makes their loan data available through their <a href="http://build.kiva.org/">api</a>. They also periodically make <a href="http://build.kiva.org/docs/data/snapshots">downloadable snapshots</a> of the data. I most recently used the May 18 2015 json snapshot for this analysis. The loan data is in a 1 GB zip file that is 5 GB when unzipped. </p>
+
+<h3>
+<a id="pipeline" class="anchor" href="#pipeline" aria-hidden="true"><span class="octicon octicon-link"></span></a>Pipeline:</h3>
 
 <p>The <a href="https://github.com/mattlichti/kiva-fundraising-success/blob/master/data_pipeline.py">data_pipeline.py</a> file is used for processing the raw kiva loan data. It extracts the relevant data, performs the feature engineering, and then stores it all in a postgres SQL database. To run the pipeline, unzip the loans folder containing around 1800 json files that each have the data from 500 loans. Then setup a postgres database and run pipeline.py in the terminal the loans folder location and sql information as command line arguments. </p>
 
 <p>The most important part of the process is feature engineering. The features include anything that a potential borrower sees when viewing a loan on kiva org that they can use to decide whether or not to loan to a particular individual. A typical view of a loan from the kiva website is pictured below with some of the important features highlighted.</p>
 
-<p><img src="https://github.com/mattlichti/kiva-fundraising-success/blob/master/img/feature_engineering.jpg" alt="Feature Engineering"></p>
+<p><img src="https://github.com/mattlichti/kiva-fundraising-success/blob/master/img/feature_engineering.jpg?raw=true" alt="Feature Engineering"></p>
 
 <p>The features include the loan amount, repayment term (anywhere from 4 months to several years), gender, group size (loans can be for 1 person or a group of people), whether the borrower is liable for losses due to currency fluctuations, whether the borrower has their name and photo on the website rather than remain anonymous. Categorical variables include country (currently 84 countries), sector (15 categories like transportation or agriculture), and a narrower activity category (150 categories like "rickshaw" or "cattle"). The loans also have various searchable themes like "green", "fair trade", "conflict zones", etc. I used the one sentence description of how the loan will be used to engineer features out of the most commonly used terms. The length of this text as well as the length of the larger description text were also useful features. </p>
 
 <p>In addition to the features that impact demand for particular loans, the supply of loans on the site can impact the chances of each loan getting funded. I used SQL to calculate the number of other loans on kiva at the time each loan was posted by comparing the timestamp of when each loan was posted to the timestamps for when other loans were posted and funded or expired.</p>
 
-<p><img src="https://github.com/mattlichti/kiva-fundraising-success/blob/master/plots/competing_loans.png" alt="Kiva Loan"></p>
+<p><img src="https://github.com/mattlichti/kiva-fundraising-success/blob/master/plots/competing_loans.png?raw=true" alt="Competing Loans"></p>
 
 <p>When there are few loans on the site, almost all of the loans get funded. When there is more competition, lenders have more options each loan has a higher chance of expiring. In the future, it might be useful to look at the total value of the loans currently fundraising and how far along they are in their fundraising, not just the number of loans. It might also be useful to look at attributes of those loans. For example, if there are a lot of loans currently fundraising from the same country or economic sector as the loan being posted, it may lower the chance of that loan getting funded.</p>
 
