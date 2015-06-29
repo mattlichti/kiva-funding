@@ -1,3 +1,5 @@
+#How to get loans funded on kiva[(http://mattlichti.github.io/kiva-fundraising-success/)]
+
 This project is an analysis of what features make microfinance loans on [kiva.org](kiva.org) more likely to get funded. The full analysis and explanation of my process is [here](http://mattlichti.github.io/kiva-fundraising-success/)
 
 
