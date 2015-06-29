@@ -12,17 +12,14 @@
   <body>
     <section class="page-header">
       <h1 class="project-name">How to Get Loans Funded on Kiva.org</h1>
-      <h2 class="project-tagline">Analysis of the features that predict fundraising success</h2>
+      <h2 class="project-tagline">Using Machine Learning to find the key features that predict fundraising success</h2>
       <a href="https://github.com/mattlichti/kiva-fundraising-success" class="btn">View on GitHub</a>
       <a href="https://github.com/mattlichti/kiva-fundraising-success/zipball/master" class="btn">Download .zip</a>
       <a href="https://github.com/mattlichti/kiva-fundraising-success/tarball/master" class="btn">Download .tar.gz</a>
     </section>
 
     <section class="main-content">
-      <h1>
-<a id="how-to-get-loans-funded-on-kiva" class="anchor" href="#how-to-get-loans-funded-on-kiva" aria-hidden="true"><span class="octicon octicon-link"></span></a>How to get Loans Funded on Kiva</h1>
-
-<h2>
+      <h2>
 <a id="motivation" class="anchor" href="#motivation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Motivation:</h2>
 
 <p>This project is an analysis of what features make microfinance loans on <a href="kiva.org">kiva.org</a> more likely to get funded. There are over 2 million small time lenders on kiva who have funded over 880,000 microfinance loans totaling $712 million since 2005. The loans are originally made by 296 different microfinance organizations in 85 countries who use kiva to raise money to backfill some of their loans. Lenders can view the loans on the website and lend as little as $25 to any of the borrowers they chose.</p>
@@ -46,20 +43,36 @@
 
 <p><img src="https://github.com/mattlichti/kiva-fundraising-success/blob/master/img/feature_engineering.jpg?raw=true" alt="Feature Engineering"></p>
 
-<p>The features include the loan amount, repayment term (anywhere from 4 months to several years), gender, group size (loans can be for 1 person or a group of people), whether the borrower is liable for losses due to currency fluctuations, whether the borrower has their name and photo on the website rather than remain anonymous.</p>
+<h3>
+<a id="continuous-features" class="anchor" href="#continuous-features" aria-hidden="true"><span class="octicon octicon-link"></span></a>Continuous features</h3>
+
+<ul>
+<li>loan amount</li>
+<li>repayment term (anywhere from 4 months to several years)</li>
+<li>group size (loans can be for 1 person or a group of people)</li>
+</ul>
 
 <h3>
 <a id="categorical-features" class="anchor" href="#categorical-features" aria-hidden="true"><span class="octicon octicon-link"></span></a>Categorical features</h3>
 
-<p>Categorical variables include country (currently 84 countries), sector (15 categories like transportation or agriculture), and a narrower activity category (150 categories like "rickshaw" or "cattle"). The loans also have various searchable themes like "green", "fair trade", "conflict zones", etc. </p>
+<ul>
+<li>gender</li>
+<li>country - currently 84 countries</li>
+<li>sector - 15 categories like transportation or agriculture</li>
+<li>activity - 150 categories like "rickshaw" or "cattle"</li>
+<li>repayment interval - loans payments can be monthly, lump sum at the end, or irregular </li>
+<li>themes - searchable attributes like "green", "fair trade", "conflict zones", etc. </li>
+<li>currency loss - whether the lender is liable for losses due to currency fluctuations</li>
+<li>anonymous - whether the borrower has their name and photo on the website or chooses to remain anonymous.</li>
+</ul>
 
 <h3>
-<a id="text" class="anchor" href="#text" aria-hidden="true"><span class="octicon octicon-link"></span></a>text</h3>
+<a id="transforming-the-text-into-features" class="anchor" href="#transforming-the-text-into-features" aria-hidden="true"><span class="octicon octicon-link"></span></a>Transforming the text into features</h3>
 
 <p>I used the one sentence description of how the loan will be used to engineer features out of the most commonly used terms. The length of this text as well as the length of the larger description text were also useful features. </p>
 
 <h3>
-<a id="competing-loans" class="anchor" href="#competing-loans" aria-hidden="true"><span class="octicon octicon-link"></span></a>competing loans</h3>
+<a id="competing-loans" class="anchor" href="#competing-loans" aria-hidden="true"><span class="octicon octicon-link"></span></a>Competing loans</h3>
 
 <p>In addition to the features that impact demand for particular loans, the supply of loans on the site can effect the chances of each loan getting funded. I used SQL to calculate the number of other loans on kiva at the time each loan was posted by comparing the timestamp of when each loan was posted to the timestamps for when other loans were posted and funded or expired.</p>
 
@@ -70,14 +83,32 @@
 <h2>
 <a id="modeling" class="anchor" href="#modeling" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modeling:</h2>
 
-<p>build_model.py is used to train the model, predict which loans have a higher risk of expiring, and determine which features are most important in predicting loan success. run_model.py is used to load the relevant data from the postgres sql database and run the model on that data. It can be run from the command line like data_pipeline.py. </p>
+<p>build_model.py is used to train the model, predict which loans have a higher risk of expiring, and determine which features are most important in predicting loan success. The model converts the categorical features into boolean dummy variables, and tokenizes, lemmatizes, and performs TF-IDF on the text. The model can output a confusion matrix and a list of feature importance which could be used as recommendations on how to improve their odds of getting their loans funded.</p>
 
-<p>The model converts the categorical features into boolean dummy variables, and tokenizes, lemmatizes, and performs TF-IDF on the text. I used a random forest model which I had to tune quite a bit to avoid overfitting. The classes were unbalanced with a much higher number of funded loans than expired loans, so I heavily weighted the expired loans in order to increase recall of expired loans at the expense of precision. I also tried logistic regression and SVM but they have not performed quite as well. The model can output a confusion matrix and a list of feature importances which could be used as recommendations on how to improve their odds of getting their loans funded. </p>
+<h3>
+<a id="weighted-random-forest" class="anchor" href="#weighted-random-forest" aria-hidden="true"><span class="octicon octicon-link"></span></a>Weighted Random Forest</h3>
+
+<p>I used a random forest model. The classes were unbalanced with a much higher number of funded loans than expired loans, so I heavily weighted the expired loans in order to increase recall of expired loans at the expense of precision. I also tried logistic regression and SVM but they have not performed quite as well.  </p>
+
+<h2>
+<a id="model-tuning" class="anchor" href="#model-tuning" aria-hidden="true"><span class="octicon octicon-link"></span></a>Model Tuning</h2>
+
+<p>I had to tune the model quite a bit to avoid overfitting. I used a grid search to determine optimal values for the weight of the unbalanced class, minimum number of samples to split each node, and the minimum number of samples on each newly created leaf. I used cross validation to determine which set of parameter values had the best combination of recall and precision on the test sets.</p>
+
+<h2>
+<a id="out-of-sample-error" class="anchor" href="#out-of-sample-error" aria-hidden="true"><span class="octicon octicon-link"></span></a>Out of Sample Error</h2>
+
+<p>The model will still be somewhat biased since the test sets were from the same time period as the training sets and may net work as well data from a future time period. Because of this, I also tried training the model on one time period (May - November 2014) and testing it on a later time period (January - March 2015). The one month gap is necessary because someone predicting current loans would not know which loans posted in the last month will expire since they have 30 days to get funded.</p>
+
+<h2>
+<a id="running-the-model" class="anchor" href="#running-the-model" aria-hidden="true"><span class="octicon octicon-link"></span></a>Running the model</h2>
+
+<p>run_model.py is used to load the relevant data from the postgres sql database and run the model on that data. It can be run from the command line like data_pipeline.py.</p>
 
 <h3>
 <a id="plotting" class="anchor" href="#plotting" aria-hidden="true"><span class="octicon octicon-link"></span></a>Plotting</h3>
 
-<p>The plots.py file is used to make plots of some of the feture importances in the random forest model, as well as plot the expiration rate based on a variety of features and the expiration rate over time.</p>
+<p>The plots.py file is used to make plots of the feature importance of the most important features in the random forest model, as well as plot the expiration rate based on a variety of features and the expiration rate over time.</p>
 
 <h2>
 <a id="results" class="anchor" href="#results" aria-hidden="true"><span class="octicon octicon-link"></span></a>Results:</h2>
