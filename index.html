@@ -90,18 +90,18 @@
 
 <p>I used a random forest model. The classes were unbalanced with a much higher number of funded loans than expired loans, so I heavily weighted the expired loans in order to increase recall of expired loans at the expense of precision. I also tried logistic regression and SVM but they have not performed quite as well.  </p>
 
-<h2>
-<a id="model-tuning" class="anchor" href="#model-tuning" aria-hidden="true"><span class="octicon octicon-link"></span></a>Model Tuning</h2>
+<h3>
+<a id="model-tuning" class="anchor" href="#model-tuning" aria-hidden="true"><span class="octicon octicon-link"></span></a>Model Tuning</h3>
 
 <p>I had to tune the model quite a bit to avoid overfitting. I used a grid search to determine optimal values for the weight of the unbalanced class, minimum number of samples to split each node, and the minimum number of samples on each newly created leaf. I used cross validation to determine which set of parameter values had the best combination of recall and precision on the test sets.</p>
 
-<h2>
-<a id="out-of-sample-error" class="anchor" href="#out-of-sample-error" aria-hidden="true"><span class="octicon octicon-link"></span></a>Out of Sample Error</h2>
+<h3>
+<a id="out-of-sample-error" class="anchor" href="#out-of-sample-error" aria-hidden="true"><span class="octicon octicon-link"></span></a>Out of Sample Error</h3>
 
-<p>The model will still be somewhat biased since the test sets were from the same time period as the training sets and may net work as well data from a future time period. Because of this, I also tried training the model on one time period (May - November 2014) and testing it on a later time period (January - March 2015). The one month gap is necessary because someone predicting current loans would not know which loans posted in the last month will expire since they have 30 days to get funded.</p>
+<p>The model will still be somewhat biased since the test sets were from the same time period as the training sets and may net work as well data from a future time period. Because of this, I also tried training the model on one time period (May - November 2014) and testing it on a later time period (January - March 2015). The one month gap is necessary because someone predicting current loans would not know which loans posted in the last month will expire since they have 30 days to get funded. The model does not perform as well with different time periods which shows there are time related variables that aren't captured by the model. </p>
 
-<h2>
-<a id="running-the-model" class="anchor" href="#running-the-model" aria-hidden="true"><span class="octicon octicon-link"></span></a>Running the model</h2>
+<h3>
+<a id="running-the-model" class="anchor" href="#running-the-model" aria-hidden="true"><span class="octicon octicon-link"></span></a>Running the model</h3>
 
 <p>run_model.py is used to load the relevant data from the postgres sql database and run the model on that data. It can be run from the command line like data_pipeline.py.</p>
 
