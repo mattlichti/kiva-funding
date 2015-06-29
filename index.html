@@ -34,7 +34,7 @@
 <h3>
 <a id="pipeline" class="anchor" href="#pipeline" aria-hidden="true"><span class="octicon octicon-link"></span></a>Pipeline:</h3>
 
-<p>The <a href="https://github.com/mattlichti/kiva-fundraising-success/blob/master/data_pipeline.py">data_pipeline.py</a> file is used for processing the raw kiva loan data. It extracts the relevant data, performs the feature engineering, and then stores it all in a postgres SQL database. To run the pipeline, unzip the loans folder containing around 1800 json files that each have the data from 500 loans. Then setup a postgres database and run pipeline.py in the terminal the loans folder location and sql information as command line arguments. </p>
+<p><a href="https://github.com/mattlichti/kiva-fundraising-success/blob/master/data_pipeline.py">data_pipeline.py</a> is used for processing the raw kiva loan data. It extracts the relevant data, performs the feature engineering, and then stores it all in a postgres SQL database. To run the pipeline, unzip the loans folder containing around 1800 json files that each have the data from 500 loans. Then setup a postgres database and run pipeline.py in the terminal the loans folder location and sql information as command line arguments. </p>
 
 <h2>
 <a id="feature-engineering" class="anchor" href="#feature-engineering" aria-hidden="true"><span class="octicon octicon-link"></span></a>Feature Engineering:</h2>
@@ -83,7 +83,7 @@
 <h2>
 <a id="modeling" class="anchor" href="#modeling" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modeling:</h2>
 
-<p>build_model.py is used to train the model, predict which loans have a higher risk of expiring, and determine which features are most important in predicting loan success. The model converts the categorical features into boolean dummy variables, and tokenizes, lemmatizes, and performs TF-IDF on the text. The model can output a confusion matrix and a list of feature importance which could be used as recommendations on how to improve their odds of getting their loans funded.</p>
+<p><a href="https://github.com/mattlichti/kiva-fundraising-success/blob/master/build_model.py">build_model.py</a> is used to train the model, predict which loans have a higher risk of expiring, and determine which features are most important in predicting loan success. The model converts the categorical features into boolean dummy variables, and tokenizes, lemmatizes, and performs TF-IDF on the text. The model can output a confusion matrix and a list of feature importance which could be used as recommendations on how to improve their odds of getting their loans funded.</p>
 
 <h3>
 <a id="weighted-random-forest" class="anchor" href="#weighted-random-forest" aria-hidden="true"><span class="octicon octicon-link"></span></a>Weighted Random Forest</h3>
@@ -103,12 +103,12 @@
 <h3>
 <a id="running-the-model" class="anchor" href="#running-the-model" aria-hidden="true"><span class="octicon octicon-link"></span></a>Running the model</h3>
 
-<p>run_model.py is used to load the relevant data from the postgres sql database and run the model on that data. It can be run from the command line like data_pipeline.py.</p>
+<p><a href="https://github.com/mattlichti/kiva-fundraising-success/blob/master/run_model.py">run_model.py</a> is used to load the relevant data from the postgres sql database and run the model on that data. It can be run from the command line like data_pipeline.py.</p>
 
-<h3>
-<a id="plotting" class="anchor" href="#plotting" aria-hidden="true"><span class="octicon octicon-link"></span></a>Plotting</h3>
+<h2>
+<a id="plotting" class="anchor" href="#plotting" aria-hidden="true"><span class="octicon octicon-link"></span></a>Plotting</h2>
 
-<p>The plots.py file is used to make plots of the feature importance of the most important features in the random forest model, as well as plot the expiration rate based on a variety of features and the expiration rate over time.</p>
+<p><a href="https://github.com/mattlichti/kiva-fundraising-success/blob/master/plots.py">plots.py</a> is used to make plots of the feature importance of the most important features in the random forest model, as well as plot the expiration rate based on a variety of features and the expiration rate over time.</p>
 
 <h2>
 <a id="results" class="anchor" href="#results" aria-hidden="true"><span class="octicon octicon-link"></span></a>Results:</h2>
